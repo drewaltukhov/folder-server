@@ -9,7 +9,7 @@ fs_dash_render() {
   local php
   local status
   local marker
-  printf '  folder-server — [s]tart/stop [r]estart [o]pen [l]ogs [j/k] move [q]uit\n\n'
+  printf '  folder-server — [s]tart/stop [r]estart [o]pen [l]ogs [u]nbind [j/k] move [q]uit\n\n'
   printf '    %-22s %-8s %-6s %-4s\n' DOMAIN STATUS PORT PHP
   while IFS= read -r d; do
     [ -n "$d" ] || continue
@@ -47,6 +47,10 @@ fs_dash_action() {
     l)
       echo "logs"
       ;;
+    u)
+      fs_unbind_domain "$domain"
+      echo "unbind"
+      ;;
     q)
       echo "quit"
       ;;
@@ -62,11 +66,16 @@ fs_cmd_dash() {
   local domains
   local n
   local domain
+  local confirm
   trap 'printf "\033[?25h\033[?1049l"' EXIT INT TERM
   printf '\033[?1049h\033[?25l'
   while true; do
     domains="$(fs_registry_domains)"
     n="$(printf '%s\n' "$domains" | grep -c .)" || n=0
+    if [ "$n" -eq 0 ]; then sel=0
+    elif [ "$sel" -ge "$n" ]; then sel=$((n-1))
+    elif [ "$sel" -lt 0 ]; then sel=0
+    fi
     printf '\033[H\033[2J'
     fs_dash_render "$sel"
     IFS= read -rsn1 -t 2 key || key=""
@@ -75,6 +84,14 @@ fs_cmd_dash() {
       k) [ "$sel" -gt 0 ] && sel=$((sel-1)) ;;
       '') : ;;
       q) break ;;
+      u)
+        domain="$(printf '%s\n' "$domains" | sed -n "$((sel+1))p")"
+        [ -n "$domain" ] || continue
+        printf '\033[H\033[2J'
+        printf 'Unbind %s?  Stops it, deletes its .folderserver, removes it from the list. [y/N] ' "$domain"
+        IFS= read -rsn1 confirm || confirm=""
+        case "$confirm" in y|Y) fs_unbind_domain "$domain" ;; esac
+        ;;
       *)
         domain="$(printf '%s\n' "$domains" | sed -n "$((sel+1))p")"
         [ -n "$domain" ] || continue
