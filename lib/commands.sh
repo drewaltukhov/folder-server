@@ -212,11 +212,28 @@ fs_unbind_domain() {
   fs_registry_remove "$domain"
 }
 
+# _fs_confirm <prompt> — interactive y/N. gum when available, else read.
+# Non-interactive (no TTY) returns No, so destructive bulk actions never run
+# unattended without an explicit --yes.
+_fs_confirm() {
+  if [ -t 0 ] && command -v "$FS_GUM_BIN" >/dev/null 2>&1; then
+    "$FS_GUM_BIN" confirm "$1"; return
+  fi
+  [ -t 0 ] || return 1
+  printf '%s [y/N] ' "$1"; local r; read -r r; case "$r" in y|Y) return 0 ;; *) return 1 ;; esac
+}
+
 fs_cmd_unbind() {
   if [ "${1:-}" = "--all" ]; then
-    local domains d dir
+    local yes=0
+    case "${2:-}" in --yes|-y) yes=1 ;; esac
+    local domains d dir n
     domains="$(fs_registry_domains)"
     if [ -z "$domains" ]; then echo "fs: no sites to unbind"; return 0; fi
+    n="$(printf '%s\n' "$domains" | grep -c .)"
+    if [ "$yes" -ne 1 ] && ! _fs_confirm "Unbind all $n site(s)? Stops them and deletes each .folderserver."; then
+      echo "Aborted."; return 0
+    fi
     # snapshot the list first — unbinding removes registry entries as we go
     while IFS= read -r d; do
       [ -n "$d" ] || continue
