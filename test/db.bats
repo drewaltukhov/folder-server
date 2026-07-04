@@ -73,6 +73,14 @@ EOF
   grep -q "GRANT ALL PRIVILEGES ON \`shopdb\`.\* TO 'shopuser'@'%'" "$BATS_TEST_TMPDIR/mysql.sql"
 }
 
+@test "fs_db_provision hints to install MySQL when the client is missing" {
+  export FS_MYSQL_BIN="mysql_definitely_not_installed_xyz"
+  export FS_MYSQL_FORMULA=mysql
+  run fs_db_provision shopdb shopuser secret
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"brew install mysql"* ]]
+}
+
 @test "fs_db_provision refuses to use the admin account as the app user" {
   _stub_mysql
   FS_MYSQL_ADMIN=root
