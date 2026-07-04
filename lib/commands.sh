@@ -213,6 +213,19 @@ fs_unbind_domain() {
 }
 
 fs_cmd_unbind() {
+  if [ "${1:-}" = "--all" ]; then
+    local domains d dir
+    domains="$(fs_registry_domains)"
+    if [ -z "$domains" ]; then echo "fs: no sites to unbind"; return 0; fi
+    # snapshot the list first — unbinding removes registry entries as we go
+    while IFS= read -r d; do
+      [ -n "$d" ] || continue
+      dir="$(fs_registry_field "$d" 2 2>/dev/null || true)"
+      fs_unbind_domain "$d" "$dir"
+      echo "Unbound $d"
+    done <<<"$domains"
+    return 0
+  fi
   local dir="${1:-$PWD}"
   _fs_load_config "$dir"
   fs_unbind_domain "$FS_DOMAIN" "$dir"
