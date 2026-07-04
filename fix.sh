@@ -133,6 +133,22 @@ if command -v dig >/dev/null 2>&1; then
   fi
 fi
 
+# 7b. a system proxy/VPN that swallows *.test — the classic "loads in Chrome but
+# not Safari". Safari/CFNetwork honors the system proxy, which can't reach a local
+# loopback site; Chrome and curl bypass loopback, so only Safari breaks. Advisory
+# only: the fix lives in the proxy app (editing macOS bypass here gets overwritten).
+if scutil --proxy 2>/dev/null | grep -qE '^[[:space:]]*HTTPS?Enable[[:space:]]*:[[:space:]]*1'; then
+  if scutil --proxy 2>/dev/null | grep -qiE ':[[:space:]]*(\*\.)?test[[:space:]]*$'; then
+    ok "system proxy active, *.test is bypassed"
+  else
+    bad "a system proxy/VPN is active but *.test is NOT bypassed — Safari won't load .test sites"
+    info "Safari obeys the system proxy; Chrome/curl bypass loopback, so they still work."
+    info "Add *.test to the proxy's bypass/skip-proxy list (e.g. Shadowrocket → [General] skip-proxy),"
+    info "or System Settings → Network → Proxies → 'Bypass proxy settings for these Hosts & Domains'."
+    info "Verify: scutil --proxy | grep test"
+  fi
+fi
+
 # 8. MySQL health (only if installed — it's opt-in)
 if command -v "$FS_MYSQL_FORMULA" >/dev/null 2>&1 || brew list "$FS_MYSQL_FORMULA" >/dev/null 2>&1; then
   instances="$(pgrep -f 'mysql/bin/mysqld ' 2>/dev/null | wc -l | tr -d ' ')"
