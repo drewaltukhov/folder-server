@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-fs_lib_dir() { cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd; }
-LIB="$(fs_lib_dir)"
+src="${BASH_SOURCE[0]}"
+while [ -L "$src" ]; do
+  dir="$(cd -P "$(dirname "$src")" && pwd)"
+  src="$(readlink "$src")"
+  case "$src" in /*) ;; *) src="$dir/$src" ;; esac
+done
+LIB="$(cd -P "$(dirname "$src")/../lib" && pwd)"
 # shellcheck source=/dev/null
 for f in helpers caddy process commands dashboard; do
   [ -f "$LIB/$f.sh" ] && . "$LIB/$f.sh"

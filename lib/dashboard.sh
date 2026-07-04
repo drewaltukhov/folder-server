@@ -74,6 +74,7 @@ fs_cmd_dash() {
       j) [ "$sel" -lt $((n-1)) ] && sel=$((sel+1)) ;;
       k) [ "$sel" -gt 0 ] && sel=$((sel-1)) ;;
       '') : ;;
+      q) break ;;
       *)
         domain="$(printf '%s\n' "$domains" | sed -n "$((sel+1))p")"
         [ -n "$domain" ] || continue
