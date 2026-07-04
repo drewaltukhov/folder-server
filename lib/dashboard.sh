@@ -60,6 +60,18 @@ fs_dash_action() {
   esac
 }
 
+# fs_dash_logs <domain> — open the site's PHP log in a pager (live-follow via
+# `less +F`; press Ctrl-C to stop following, q to return to the dashboard).
+fs_dash_logs() {
+  local domain="$1" log
+  log="$(fs_logfile "$domain")"
+  if [ -f "$log" ]; then
+    "${FS_PAGER:-less}" +F "$log"
+  else
+    printf '(no log yet for %s — start the site first)\n' "$domain"
+  fi
+}
+
 fs_cmd_dash() {
   local sel=0
   local key
@@ -92,6 +104,13 @@ fs_cmd_dash() {
         [ -n "$dir" ] || continue
         printf '\033[?25h\033[H\033[2J'   # show cursor + clear for the gum form
         fs_cmd_edit "$dir" || true
+        printf '\033[?25l'                # re-hide cursor for the dashboard
+        ;;
+      l)
+        domain="$(printf '%s\n' "$domains" | sed -n "$((sel+1))p")"
+        [ -n "$domain" ] || continue
+        printf '\033[?25h\033[H\033[2J'   # show cursor + clear for the pager
+        fs_dash_logs "$domain" || true
         printf '\033[?25l'                # re-hide cursor for the dashboard
         ;;
       u)
