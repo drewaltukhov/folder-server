@@ -33,5 +33,18 @@ and a live terminal dashboard.
     domain=my-project.test
     php=8.4
     docroot=public
+    rewrite=index.php     # optional — front-controller routing (see below)
+
+### Front-controller routing (`rewrite`)
+
+There's no `.htaccess` support (that's Apache-only; this serves via `php -S`).
+For apps that need the classic "send unknown URLs to `index.php`" rewrite
+(WordPress, Laravel, Symfony, …), set `rewrite` to your front-controller file:
+
+    rewrite=index.php
+
+`fs up` then serves existing files (static assets and real `.php`) directly and
+routes every other request to that file — the same behaviour `.htaccess`
+`RewriteRule` gives you. Omit `rewrite` for plain static + direct `.php` access.
 
 See `docs/superpowers/specs/2026-07-04-folder-server-design.md` for the design.
