@@ -13,8 +13,8 @@ fs_dash_render() {
   printf '    %-22s %-8s %-6s %-4s\n' DOMAIN STATUS PORT PHP
   while IFS= read -r d; do
     [ -n "$d" ] || continue
-    port="$(fs_registry_field "$d" 3)"
-    php="$(fs_registry_field "$d" 4)"
+    port="$(fs_registry_field "$d" 3 2>/dev/null)"
+    php="$(fs_registry_field "$d" 4 2>/dev/null)"
     if fs_is_running "$d"; then status="running"; else status="stopped"; fi
     if [ "$i" -eq "$sel" ]; then marker=">"; else marker=" "; fi
     printf '  %s %-22s %-8s %-6s %-4s\n' "$marker" "$d" "$status" "$port" "$php"
@@ -66,7 +66,7 @@ fs_cmd_dash() {
   printf '\033[?1049h\033[?25l'
   while true; do
     domains="$(fs_registry_domains)"
-    n="$(printf '%s\n' "$domains" | grep -c .)"
+    n="$(printf '%s\n' "$domains" | grep -c .)" || n=0
     printf '\033[H\033[2J'
     fs_dash_render "$sel"
     IFS= read -rsn1 -t 2 key || key=""
