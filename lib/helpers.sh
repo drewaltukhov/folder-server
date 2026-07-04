@@ -33,14 +33,15 @@ fs_default_domain() {
 fs_resolve_config() {
   local dir="$1"
   local file="$dir/.folderserver"
-  local domain php docroot
+  local domain php docroot rewrite
   domain="$(fs_config_get "$file" domain)"; [ -n "$domain" ] || domain="$(fs_default_domain "$dir")"
   php="$(fs_config_get "$file" php)";       [ -n "$php" ] || php="8.4"
   docroot="$(fs_config_get "$file" docroot)"
   if [ -z "$docroot" ]; then docroot="$dir"
   else case "$docroot" in /*) : ;; *) docroot="$dir/$docroot" ;; esac
   fi
-  printf 'domain=%s\nphp=%s\ndocroot=%s\n' "$domain" "$php" "$docroot"
+  rewrite="$(fs_config_get "$file" rewrite)"
+  printf 'domain=%s\nphp=%s\ndocroot=%s\nrewrite=%s\n' "$domain" "$php" "$docroot" "$rewrite"
 }
 
 fs_registry_file() { printf '%s\n' "$FS_HOME/registry"; }

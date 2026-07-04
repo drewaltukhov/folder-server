@@ -6,14 +6,35 @@
 _fs_load_config() {
   local dir="$1"
   local k v
-  FS_DOMAIN=""; FS_PHP=""; FS_DOCROOT=""
+  FS_DOMAIN=""; FS_PHP=""; FS_DOCROOT=""; FS_REWRITE=""
   while IFS='=' read -r k v; do
     case "$k" in
       domain)  FS_DOMAIN="$v" ;;
       php)     FS_PHP="$v" ;;
       docroot) FS_DOCROOT="$v" ;;
+      rewrite) FS_REWRITE="$v" ;;
     esac
   done < <(fs_resolve_config "$dir")
+}
+
+# Front-controller router support (the .htaccess "route unknown URLs to
+# index.php" pattern, implemented as a `php -S` router script).
+fs_router_file() { printf '%s\n' "$FS_HOME/run/$1.router.php"; }
+
+fs_router_render() {
+  local fc="$1" tmpl
+  tmpl="$(cd "$(dirname "${BASH_SOURCE[0]}")/../templates" && pwd)/router.php.tmpl"
+  sed -e "s|{{FRONT_CONTROLLER}}|$fc|g" "$tmpl"
+}
+
+fs_write_router() {
+  local domain="$1" fc="$2"
+  fs_ensure_home
+  fs_router_render "$fc" >"$(fs_router_file "$domain")"
+}
+
+fs_remove_router() {
+  rm -f "$(fs_router_file "$1")"
 }
 
 fs_cmd_up() {
@@ -23,22 +44,36 @@ fs_cmd_up() {
     echo "fs: invalid domain '$FS_DOMAIN' (allowed: letters, digits, . _ -)" >&2
     return 1
   fi
+  local router=""
+  if [ -n "$FS_REWRITE" ]; then
+    if [[ ! "$FS_REWRITE" =~ ^[A-Za-z0-9._-]+$ ]]; then
+      echo "fs: invalid rewrite '$FS_REWRITE' (must be a front-controller filename in the docroot, e.g. index.php)" >&2
+      return 1
+    fi
+    fs_write_router "$FS_DOMAIN" "$FS_REWRITE"
+    router="$(fs_router_file "$FS_DOMAIN")"
+  fi
   local phpbin
   local port
   phpbin="$(fs_php_binary "$FS_PHP")" || return 1
   port="$(fs_registry_field "$FS_DOMAIN" 3 2>/dev/null || true)"
   [ -n "$port" ] || port="$(fs_free_port)" || return 1
-  fs_start_php "$FS_DOMAIN" "$phpbin" "$port" "$FS_DOCROOT" || return 1
+  fs_start_php "$FS_DOMAIN" "$phpbin" "$port" "$FS_DOCROOT" "$router" || return 1
   fs_write_site "$FS_DOMAIN" "$port"
   fs_registry_set "$FS_DOMAIN" "$dir" "$port" "$FS_PHP"
   fs_caddy_reload || true
-  echo "Serving $dir → https://$FS_DOMAIN (php $FS_PHP, port $port)"
+  if [ -n "$FS_REWRITE" ]; then
+    echo "Serving $dir → https://$FS_DOMAIN (php $FS_PHP, port $port, rewrite → $FS_REWRITE)"
+  else
+    echo "Serving $dir → https://$FS_DOMAIN (php $FS_PHP, port $port)"
+  fi
 }
 
 fs_cmd_down() {
   local dir="${1:-$PWD}"
   _fs_load_config "$dir"
   fs_stop_php "$FS_DOMAIN"
+  fs_remove_router "$FS_DOMAIN"
   fs_remove_site "$FS_DOMAIN"
   fs_caddy_reload || true
   echo "Stopped $FS_DOMAIN"

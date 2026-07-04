@@ -13,7 +13,7 @@ fs_is_running() {
 }
 
 fs_start_php() {
-  local domain="$1" phpbin="$2" port="$3" docroot="$4"
+  local domain="$1" phpbin="$2" port="$3" docroot="$4" router="${5:-}"
   fs_ensure_home
   if fs_is_running "$domain"; then
     echo "fs: $domain already running" >&2; return 1
@@ -21,7 +21,11 @@ fs_start_php() {
   local log pf
   log="$(fs_logfile "$domain")"
   pf="$(fs_pidfile "$domain")"
-  nohup "$phpbin" -S "127.0.0.1:$port" -t "$docroot" >"$log" 2>&1 &
+  if [ -n "$router" ]; then
+    nohup "$phpbin" -S "127.0.0.1:$port" -t "$docroot" "$router" >"$log" 2>&1 &
+  else
+    nohup "$phpbin" -S "127.0.0.1:$port" -t "$docroot" >"$log" 2>&1 &
+  fi
   echo "$!" >"$pf"
 }
 
