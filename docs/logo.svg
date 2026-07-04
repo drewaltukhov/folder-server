@@ -1,39 +1,23 @@
 <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="folder-server icon">
-  <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#0d1117"/>
-      <stop offset="1" stop-color="#161b22"/>
-    </linearGradient>
-    <linearGradient id="folder" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#22d3ee"/>
-      <stop offset="0.5" stop-color="#3b82f6"/>
-      <stop offset="1" stop-color="#a855f7"/>
-    </linearGradient>
-    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.9"/>
-      <stop offset="1" stop-color="#a855f7" stop-opacity="0.9"/>
-    </linearGradient>
-  </defs>
+  <!-- white tile -->
+  <rect x="6" y="6" width="188" height="188" rx="42" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/>
 
-  <!-- app tile -->
-  <rect x="6" y="6" width="188" height="188" rx="42" fill="url(#tile)" stroke="url(#edge)" stroke-width="2"/>
-
-  <g transform="translate(37,45)">
-    <!-- folder body -->
+  <g transform="translate(37,45)" stroke="#0a0a0a" stroke-linejoin="round" stroke-linecap="round">
+    <!-- folder outline -->
     <path d="M6 20 q0-10 10-10 h30 l12 12 h52 q10 0 10 10 v58 q0 10 -10 10 h-94 q-10 0 -10 -10 z"
-          fill="url(#folder)"/>
-    <!-- inner shading so the server pocket reads as "inside" -->
-    <path d="M6 32 h114 v48 q0 10 -10 10 h-94 q-10 0 -10 -10 z" fill="#000000" opacity="0.16"/>
+          fill="none" stroke-width="6"/>
 
-    <!-- server mini-icon inside the folder -->
-    <rect x="32" y="40" width="62" height="43" rx="9" fill="#0b0f16" stroke="#e6edf3" stroke-opacity="0.15" stroke-width="1.5"/>
-    <g>
-      <circle cx="44" cy="52" r="3" fill="#34d399"/>
-      <rect x="52" y="49.5" width="32" height="5" rx="2.5" fill="#22d3ee" opacity="0.9"/>
-      <circle cx="44" cy="64" r="3" fill="#22d3ee"/>
-      <rect x="52" y="61.5" width="26" height="5" rx="2.5" fill="#3b82f6" opacity="0.85"/>
-      <circle cx="44" cy="76" r="3" fill="#fbbf24"/>
-      <rect x="52" y="73.5" width="30" height="5" rx="2.5" fill="#a855f7" opacity="0.8"/>
+    <!-- server mini-icon inside -->
+    <rect x="32" y="40" width="62" height="43" rx="8" fill="none" stroke-width="4"/>
+    <g stroke-width="4">
+      <line x1="52" y1="52" x2="84" y2="52"/>
+      <line x1="52" y1="64" x2="78" y2="64"/>
+      <line x1="52" y1="76" x2="82" y2="76"/>
+    </g>
+    <g fill="#0a0a0a" stroke="none">
+      <circle cx="44" cy="52" r="2.6"/>
+      <circle cx="44" cy="64" r="2.6"/>
+      <circle cx="44" cy="76" r="2.6"/>
     </g>
   </g>
 </svg>
