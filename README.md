@@ -26,6 +26,18 @@ You also need a PHP version to serve with (`brew install php`, or `php@8.3` /
 `php@8.4`). MySQL is only required if a project uses `db=on` — `brew install mysql`.
 `fs setup` reminds you of both.
 
+### Maintenance
+
+    ./fix.sh              # audit the setup and offer to repair anything broken
+    ./fix.sh --dry-run    # report problems without changing anything
+    ./uninstall.sh        # stop services + remove folder-server's system wiring
+    ./uninstall.sh --purge # also remove brew packages, the cert, and ~/.folder-server
+
+`fix.sh` checks brew deps, the `*.test` DNS rule + resolver, the wildcard cert,
+the Caddy import, whether dnsmasq/caddy are running, `*.test` resolution, MySQL
+health (duplicate/stale `mysqld` is the usual cause of a start failing), and
+stale site processes — fixing each with your OK (or all of them with `--yes`).
+
 ## Usage
 
     cd ~/Sites/my-project
