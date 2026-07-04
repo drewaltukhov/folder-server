@@ -9,9 +9,10 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/drewaltukhov/folder-server/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/drewaltukhov/folder-server/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Platform" src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white">
   <img alt="Homebrew" src="https://img.shields.io/badge/deps-Homebrew-FBB040?logo=homebrew&logoColor=white">
-  <img alt="Built with bash" src="https://img.shields.io/badge/built%20with-bash-4EAA25?logo=gnubash&logoColor=white">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
 <p align="center">
