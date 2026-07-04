@@ -109,10 +109,9 @@ command=npm run dev      # detected (supports pnpm / yarn / bun)
 port=5173                # the port your dev server listens on
 ```
 
-- The port is the one thing folder-server can't always guess — Vite, Astro, and
-  Next each differ, and projects override it. `fs init` pre-fills a sensible
-  default; if your dev server uses a custom port, set `port=` to match. Leave it
-  blank to auto-assign a free port and inject `PORT` for tools that respect it.
+- folder-server **auto-detects the port the dev server actually binds** (from its
+  startup log), so it works even when a project hardcodes a custom port in its
+  config. `port=` is optional — it seeds the injected `PORT` and acts as a fallback.
 - folder-server rewrites the upstream `Host` to loopback so dev servers don't
   reject the proxied hostname (`Blocked request … is not allowed`).
 - `install=on` (default when `fs init` detects a node project) auto-runs the

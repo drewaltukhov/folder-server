@@ -8,6 +8,7 @@ setup() {
   fs_ensure_home
   make_stub caddy "$BATS_TEST_TMPDIR/caddy.log"; export FS_CADDY_BIN=caddy
   export FS_CADDY_CONFIG="$BATS_TEST_TMPDIR/Caddyfile"
+  export FS_NODE_PORT_WAIT=1   # don't wait long for a log port in tests
   PROJ="$BATS_TEST_TMPDIR/proj"; mkdir -p "$PROJ"
 }
 teardown() { fs_stop_proc app.test >/dev/null 2>&1 || true; }
@@ -94,6 +95,15 @@ teardown() { fs_stop_proc app.test >/dev/null 2>&1 || true; }
   # Host rewritten to loopback so the dev server doesn't block the proxied host
   grep -q "header_up Host 127.0.0.1:9191" "$FS_CADDY_SITES/app.test.caddy"
   [ "$(fs_registry_field app.test 4)" = "node dev" ]
+}
+
+@test "fs_detect_running_port reads the port from the dev log" {
+  local log; log="$(fs_logfile x.test)"
+  printf ' astro  v5 ready\n Local  http://localhost:4329/\n' >"$log"
+  [ "$(fs_detect_running_port x.test 8001)" = 4329 ]
+  # falls back when the log has no URL
+  : >"$(fs_logfile y.test)"
+  [ "$(fs_detect_running_port y.test 8001)" = 8001 ]
 }
 
 @test "up node-build runs build and serves the output statically (no process)" {
