@@ -42,3 +42,52 @@ fs_resolve_config() {
   fi
   printf 'domain=%s\nphp=%s\ndocroot=%s\n' "$domain" "$php" "$docroot"
 }
+
+fs_registry_file() { printf '%s\n' "$FS_HOME/registry"; }
+
+fs_registry_get() {
+  local domain="$1"
+  local f
+  f="$(fs_registry_file)"
+  [ -f "$f" ] || return 1
+  local line
+  line="$(grep -m1 "^${domain}|" "$f" 2>/dev/null)" || return 1
+  [ -n "$line" ] || return 1
+  printf '%s\n' "$line"
+}
+
+fs_registry_field() {
+  local domain="$1"
+  local n="$2"
+  local line
+  line="$(fs_registry_get "$domain")" || return 1
+  printf '%s\n' "$line" | cut -d'|' -f"$n"
+}
+
+fs_registry_set() {
+  local domain="$1" dir="$2" port="$3" php="$4"
+  local f tmp
+  f="$(fs_registry_file)"
+  fs_ensure_home
+  tmp="$(mktemp)"
+  grep -v "^${domain}|" "$f" 2>/dev/null >"$tmp" || true
+  printf '%s|%s|%s|%s\n' "$domain" "$dir" "$port" "$php" >>"$tmp"
+  mv "$tmp" "$f"
+}
+
+fs_registry_remove() {
+  local domain="$1"
+  local f tmp
+  f="$(fs_registry_file)"
+  [ -f "$f" ] || return 0
+  tmp="$(mktemp)"
+  grep -v "^${domain}|" "$f" 2>/dev/null >"$tmp" || true
+  mv "$tmp" "$f"
+}
+
+fs_registry_domains() {
+  local f
+  f="$(fs_registry_file)"
+  [ -f "$f" ] || return 0
+  cut -d'|' -f1 "$f"
+}
