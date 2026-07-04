@@ -25,7 +25,7 @@ Usage: fs <command> [args]
   init              Create a .folderserver config in the current folder
   up [--all]        Start serving the current folder (or every known site)
   down [--all]      Stop serving the current folder (or every running site)
-  restart           Restart the current folder
+  restart [--all]   Restart the current folder (or every known site)
   edit              Edit the current folder's config (php, routing, MySQL)
   unbind [--all]    Stop, delete .folderserver, and forget the current folder (or all)
   list              List all known sites and their status

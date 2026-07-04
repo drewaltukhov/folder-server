@@ -94,7 +94,7 @@ routing, and optional MySQL (with a login/password).
 | `fs init` | Interactive setup for the current folder → writes `.folderserver` |
 | `fs up` / `fs up --all` | Serve this folder (or every known site) |
 | `fs down` / `fs down --all` | Stop this folder (or every site) |
-| `fs restart` | Restart this folder |
+| `fs restart` / `fs restart --all` | Restart this folder (or every known site) |
 | `fs edit` | Change PHP / routing / MySQL for this folder |
 | `fs list` | Table of all sites and their status |
 | `fs dash` | Live dashboard — `[e]dit` `[u]nbind` `[l]ogs` `[o]pen` `[s]tart/stop` |
