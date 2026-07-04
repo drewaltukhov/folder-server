@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fs_lib_dir() { cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd; }
+LIB="$(fs_lib_dir)"
+# shellcheck source=/dev/null
+for f in helpers caddy process commands dashboard; do
+  [ -f "$LIB/$f.sh" ] && . "$LIB/$f.sh"
+done
+
+fs_usage() {
+  cat <<'EOF'
+Usage: fs <command> [args]
+
+  setup             One-time machine setup (dnsmasq, caddy, cert, deps)
+  init              Create a .folderserver config in the current folder
+  up                Start serving the current folder
+  down              Stop serving the current folder
+  restart           Restart the current folder
+  list              List all known sites and their status
+  open              Open the current folder's URL in the browser
+  logs              Tail the current folder's PHP log
+  db start|stop|status   Control the shared MySQL service
+  dash              Live TUI dashboard
+  help              Show this help
+EOF
+}
+
+main() {
+  local cmd="${1:-}"
+  [ -n "$cmd" ] || { fs_usage; return 2; }
+  shift || true
+  case "$cmd" in
+    help|-h|--help) fs_usage ;;
+    version|-v|--version) echo "folder-server 0.1.0" ;;
+    setup)   fs_cmd_setup "$@" ;;
+    init)    fs_cmd_init "$@" ;;
+    up)      fs_cmd_up "$@" ;;
+    down)    fs_cmd_down "$@" ;;
+    restart) fs_cmd_restart "$@" ;;
+    list)    fs_cmd_list "$@" ;;
+    open)    fs_cmd_open "$@" ;;
+    logs)    fs_cmd_logs "$@" ;;
+    db)      fs_cmd_db "$@" ;;
+    dash)    fs_cmd_dash "$@" ;;
+    *) echo "fs: unknown command: $cmd" >&2; fs_usage >&2; return 127 ;;
+  esac
+}
+main "$@"
