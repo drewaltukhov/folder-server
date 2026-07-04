@@ -48,6 +48,20 @@ fs_db_enabled() {
 
 : "${FS_MYSQL_BIN:=mysql}"
 : "${FS_MYSQL_ADMIN:=root}"
+: "${FS_MYSQL_HOST:=127.0.0.1}"
+: "${FS_MYSQL_PORT:=3306}"
+
+# fs_db_creds_banner <db> <user> <pass> — print the connection details a
+# developer needs after their database is provisioned.
+fs_db_creds_banner() {
+  local db="$1" user="$2" pass="$3"
+  printf '  MySQL ready — connect with:\n'
+  printf '    host      %s   (use this, not "localhost")\n' "$FS_MYSQL_HOST"
+  printf '    port      %s\n' "$FS_MYSQL_PORT"
+  printf '    database  %s\n' "$db"
+  printf '    user      %s\n' "$user"
+  printf '    password  %s\n' "$pass"
+}
 
 # fs_db_provision <name> <user> <pass>
 # Starts the shared MySQL, waits for readiness, then (idempotently) creates the
@@ -63,6 +77,10 @@ fs_db_provision() {
   if [[ ! "$user" =~ ^[A-Za-z0-9_]+$ ]]; then
     echo "fs: invalid db user '$user' (allowed: letters, digits, _)" >&2; return 1
   fi
+  if [ "$user" = "$FS_MYSQL_ADMIN" ]; then
+    echo "fs: db_user cannot be '$FS_MYSQL_ADMIN' — that's the MySQL admin account folder-server uses to provision, and it can't also be a password-protected app user. Use a dedicated user (e.g. the project name)." >&2
+    return 1
+  fi
   case "$pass" in
     *\\*|*\`*) echo "fs: db password may not contain a backslash or backtick" >&2; return 1 ;;
   esac
@@ -75,10 +93,15 @@ fs_db_provision() {
     if [ "$i" -ge 30 ]; then echo "fs: MySQL did not become ready" >&2; return 1; fi
     sleep 0.5
   done
+  # CREATE makes the user if absent; ALTER guarantees the configured password is
+  # applied even when the user already existed (e.g. after `fs edit`). Grants for
+  # both @'%' (TCP) and @'localhost' (socket / 127.0.0.1 via name resolution).
   "$FS_MYSQL_BIN" -u"$FS_MYSQL_ADMIN" <<SQL
 CREATE DATABASE IF NOT EXISTS \`$name\`;
 CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$pesc';
 CREATE USER IF NOT EXISTS '$user'@'localhost' IDENTIFIED BY '$pesc';
+ALTER USER '$user'@'%' IDENTIFIED BY '$pesc';
+ALTER USER '$user'@'localhost' IDENTIFIED BY '$pesc';
 GRANT ALL PRIVILEGES ON \`$name\`.* TO '$user'@'%';
 GRANT ALL PRIVILEGES ON \`$name\`.* TO '$user'@'localhost';
 FLUSH PRIVILEGES;
@@ -160,7 +183,7 @@ fs_cmd_up() {
   fi
   if fs_db_enabled "$FS_DB"; then
     if fs_db_provision "$FS_DB_NAME" "$FS_DB_USER" "$FS_DB_PASS"; then
-      echo "  DB ready: mysqli_connect('127.0.0.1', '$FS_DB_USER', '…', '$FS_DB_NAME')"
+      fs_db_creds_banner "$FS_DB_NAME" "$FS_DB_USER" "$FS_DB_PASS"
     else
       echo "fs: DB setup failed — site is still served" >&2
     fi

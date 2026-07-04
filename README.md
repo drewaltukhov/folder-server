@@ -69,7 +69,24 @@ user with full grants on it — so this just works:
 $mysqli = mysqli_connect('127.0.0.1', 'app', 'secret', 'my_project');
 ```
 
-Provisioning connects to MySQL as `root` (the Homebrew default). Credentials are
-stored in plaintext in `.folderserver` — don't commit it if the password matters.
+After provisioning, `fs up` prints the exact connection details:
+
+```
+  MySQL ready — connect with:
+    host      127.0.0.1   (use this, not "localhost")
+    port      3306
+    database  my_project
+    user      app
+    password  secret
+```
+
+Notes:
+- **Use a dedicated `db_user`, not `root`.** `root` is the admin account
+  folder-server connects as to provision, so it can't also be your app user.
+- **Connect on `127.0.0.1`, not `localhost`** — `localhost` uses the socket and
+  matches MySQL's passwordless `root@localhost`; `127.0.0.1` uses TCP.
+- Provisioning connects as `root` with no password (the Homebrew default).
+- Credentials are stored in plaintext in `.folderserver` — don't commit it if the
+  password matters.
 
 See `docs/superpowers/specs/2026-07-04-folder-server-design.md` for the design.
