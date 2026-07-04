@@ -1,0 +1,58 @@
+<svg width="660" height="200" viewBox="0 0 660 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="folder-server logo">
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d1117"/>
+      <stop offset="1" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.5" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- card -->
+  <rect x="2" y="2" width="656" height="196" rx="22" fill="url(#card)" stroke="#30363d" stroke-width="1.5"/>
+
+  <!-- subtle corner nodes -->
+  <g stroke="#21313f" stroke-width="1.5" fill="none" opacity="0.9">
+    <path d="M596 34 h30 M611 34 v20"/>
+    <path d="M604 168 h34"/>
+  </g>
+  <g fill="#22d3ee" opacity="0.55">
+    <circle cx="626" cy="34" r="2.4"/>
+    <circle cx="611" cy="54" r="2.4"/>
+    <circle cx="638" cy="168" r="2.4"/>
+  </g>
+
+  <!-- folder-as-server mark -->
+  <g transform="translate(44,52)">
+    <!-- folder body -->
+    <path d="M8 24 q0-8 8-8 h20 l8 8 h32 q8 0 8 8 v34 q0 8 -8 8 h-60 q-8 0 -8 -8 z"
+          fill="#0b0f16" stroke="url(#mark)" stroke-width="3.5" stroke-linejoin="round"/>
+    <!-- server slots + status LEDs -->
+    <g>
+      <circle cx="26" cy="35" r="2.7" fill="#34d399"/>
+      <rect x="34" y="32.5" width="34" height="5" rx="2.5" fill="#22d3ee" opacity="0.85"/>
+      <circle cx="26" cy="48" r="2.7" fill="#22d3ee"/>
+      <rect x="34" y="45.5" width="28" height="5" rx="2.5" fill="#3b82f6" opacity="0.8"/>
+      <circle cx="26" cy="61" r="2.7" fill="#fbbf24"/>
+      <rect x="34" y="58.5" width="32" height="5" rx="2.5" fill="#a855f7" opacity="0.75"/>
+    </g>
+  </g>
+
+  <!-- wordmark -->
+  <text x="196" y="115" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace"
+        font-size="46" font-weight="700" letter-spacing="-1">
+    <tspan fill="#e6edf3">folder</tspan><tspan fill="url(#word)">-server</tspan>
+  </text>
+  <!-- cursor block -->
+  <rect x="541" y="82" width="18" height="38" rx="2" fill="#34d399" opacity="0.9"/>
+
+  <!-- shine underline -->
+  <rect x="197" y="128" width="315" height="3" rx="1.5" fill="url(#word)" opacity="0.45"/>
+</svg>
