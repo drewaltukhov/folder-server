@@ -1,22 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="800" height="248" viewBox="0 0 800 248" font-family="'SFMono-Regular',ui-monospace,Menlo,Consolas,'Liberation Mono',monospace">
+<svg xmlns="http://www.w3.org/2000/svg" width="856" height="340" viewBox="0 0 856 340" font-family="'SFMono-Regular',ui-monospace,Menlo,Consolas,'Liberation Mono',monospace">
   <defs>
-    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#000" flood-opacity="0.45"/>
+    <filter id="sh" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#000" flood-opacity="0.5"/>
     </filter>
   </defs>
-  <rect x="16" y="12" width="768" height="224" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="1" filter="url(#sh)"/>
-  <rect x="16" y="12" width="768" height="40" rx="12" fill="#161b22"/>
-  <rect x="16" y="40" width="768" height="12" fill="#161b22"/>
-  <line x1="16" y1="52" x2="784" y2="52" stroke="#30363d" stroke-width="1"/>
-  <circle cx="40" cy="32" r="6" fill="#ff5f56"/>
-  <circle cx="60" cy="32" r="6" fill="#ffbd2e"/>
-  <circle cx="80" cy="32" r="6" fill="#27c93f"/>
-  <text x="400" y="36" text-anchor="middle" font-size="13" fill="#7d8590">fs&#160;dash</text>
-  <rect x="24" y="145" width="752" height="25" rx="5" fill="#1b2333"/>
-  <rect x="24" y="145" width="3" height="25" rx="1.5" fill="#7aa2f7"/>
-  <text xml:space="preserve" x="28" y="88" font-size="15"><tspan fill="#8b95a5">  </tspan><tspan fill="#e6edf3">folder-server</tspan><tspan fill="#7d8590"> — [s]tart/stop [r]estart [o]pen [l]ogs [u]nbind [j/k] move [q]uit</tspan></text>
-  <text xml:space="preserve" x="28" y="138" font-size="15" fill="#6e7681" letter-spacing="0.5">    DOMAIN                 STATUS   PORT   PHP </text>
-  <text xml:space="preserve" x="28" y="163" font-size="15"><tspan fill="#e6edf3">  &gt; acme-shop.test         </tspan><tspan fill="#3fb950">running</tspan><tspan fill="#6e7681">  8000   8.4 </tspan></text>
-  <text xml:space="preserve" x="28" y="188" font-size="15"><tspan fill="#8b95a5">    blog.test              </tspan><tspan fill="#6e7681">stopped</tspan><tspan fill="#6e7681">  8001   8.5 </tspan></text>
-  <text xml:space="preserve" x="28" y="213" font-size="15"><tspan fill="#8b95a5">    api.test               </tspan><tspan fill="#3fb950">running</tspan><tspan fill="#6e7681">  8002   8.4 </tspan></text>
+  <rect x="44" y="30" width="768" height="224" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="1" filter="url(#sh)"/>
+  <rect x="44" y="30" width="768" height="40" rx="12" fill="#161b22"/>
+  <rect x="44" y="58" width="768" height="12" fill="#161b22"/>
+  <line x1="44" y1="70" x2="812" y2="70" stroke="#30363d" stroke-width="1"/>
+  <circle cx="68" cy="50" r="6" fill="#ff5f56"/>
+  <circle cx="88" cy="50" r="6" fill="#ffbd2e"/>
+  <circle cx="108" cy="50" r="6" fill="#27c93f"/>
+  <text x="428" y="55" text-anchor="middle" font-size="13" fill="#7d8590">fs&#160;dash</text>
+  <rect x="52" y="161" width="752" height="25" rx="5" fill="#1b2333"/>
+  <rect x="52" y="161" width="3" height="25" rx="1.5" fill="#7aa2f7"/>
+  <text xml:space="preserve" x="56" y="104" font-size="15"><tspan fill="#8b95a5">  </tspan><tspan fill="#e6edf3">folder-server</tspan><tspan fill="#7d8590"> — [s]tart/stop [r]estart [o]pen [l]ogs [u]nbind [j/k] move [q]uit</tspan></text>
+  <text xml:space="preserve" x="56" y="154" font-size="15" fill="#6e7681">    DOMAIN                 STATUS   PORT   PHP </text>
+  <text xml:space="preserve" x="56" y="179" font-size="15"><tspan fill="#e6edf3">  &gt; acme-shop.test         </tspan><tspan fill="#3fb950">running</tspan><tspan fill="#6e7681">  8000   8.4 </tspan></text>
+  <text xml:space="preserve" x="56" y="204" font-size="15"><tspan fill="#8b95a5">    blog.test              </tspan><tspan fill="#6e7681">stopped</tspan><tspan fill="#6e7681">  8001   8.5 </tspan></text>
+  <text xml:space="preserve" x="56" y="229" font-size="15"><tspan fill="#8b95a5">    api.test               </tspan><tspan fill="#3fb950">running</tspan><tspan fill="#6e7681">  8002   8.4 </tspan></text>
 </svg>
