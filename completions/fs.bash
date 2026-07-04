@@ -4,7 +4,7 @@
 _fs_complete() {
   local cur cmds
   cur="${COMP_WORDS[COMP_CWORD]}"
-  cmds="setup serve init up down restart edit unbind list open logs db dash autostart help version"
+  cmds="setup serve init up down restart edit unbind list open logs db dash autostart lan help version"
 
   if [ "$COMP_CWORD" -eq 1 ]; then
     COMPREPLY=( $(compgen -W "$cmds" -- "$cur") )
@@ -16,6 +16,7 @@ _fs_complete() {
       COMPREPLY=( $(compgen -W "--all" -- "$cur") $(compgen -d -- "$cur") ) ;;
     db)        COMPREPLY=( $(compgen -W "start stop status" -- "$cur") ) ;;
     autostart) COMPREPLY=( $(compgen -W "on off status" -- "$cur") ) ;;
+    lan)       COMPREPLY=( $(compgen -W "on off status ca" -- "$cur") ) ;;
     *)         COMPREPLY=() ;;
   esac
 }

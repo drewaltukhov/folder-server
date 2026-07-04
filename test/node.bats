@@ -91,7 +91,8 @@ teardown() { fs_stop_proc app.test >/dev/null 2>&1 || true; }
   [ "$status" -eq 0 ]
   [[ "$output" == *"node dev"* ]]
   fs_is_running app.test
-  grep -q "reverse_proxy 127.0.0.1:9191" "$FS_CADDY_SITES/app.test.caddy"
+  # dial localhost (IPv4+IPv6) so IPv6-only dev servers are reachable
+  grep -q "reverse_proxy localhost:9191" "$FS_CADDY_SITES/app.test.caddy"
   # Host rewritten to loopback so the dev server doesn't block the proxied host
   grep -q "header_up Host 127.0.0.1:9191" "$FS_CADDY_SITES/app.test.caddy"
   [ "$(fs_registry_field app.test 4)" = "node dev" ]

@@ -18,6 +18,7 @@ _fs_cmds=(
   'db:Control the shared MySQL service'
   'dash:Live TUI dashboard'
   'autostart:Start all sites at login'
+  'lan:Expose this site to the local network (phones/tablets)'
   'help:Show help'
   'version:Show version'
 )
@@ -32,4 +33,5 @@ case "$words[2]" in
   unbind)          _arguments '--all[apply to every known site]' '*:directory:_files -/' ;;
   db)              _values 'action' start stop status ;;
   autostart)       _values 'action' on off status ;;
+  lan)             _values 'action' on off status ca ;;
 esac

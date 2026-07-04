@@ -28,6 +28,7 @@ Usage: fs <command> [args]
   restart [--all]   Restart the current folder (or every known site)
   edit              Edit the current folder's config (php, routing, MySQL)
   unbind [--all]    Stop, delete .folderserver, and forget the current folder (or all)
+  lan [on|off|status|ca]  Expose current site to the LAN (phones/tablets); ca = per-device trust guide
   list              List all known sites and their status
   open              Open the current folder's URL in the browser
   logs              Tail the current folder's PHP log
@@ -53,6 +54,7 @@ main() {
     restart) fs_cmd_restart "$@" ;;
     edit)    fs_cmd_edit "$@" ;;
     unbind)  fs_cmd_unbind "$@" ;;
+    lan)     fs_cmd_lan "$@" ;;
     list)    fs_cmd_list "$@" ;;
     open)    fs_cmd_open "$@" ;;
     logs)    fs_cmd_logs "$@" ;;
