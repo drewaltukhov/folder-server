@@ -105,5 +105,3 @@ Notes:
 - Provisioning connects as `root` with no password (the Homebrew default).
 - Credentials are stored in plaintext in `.folderserver` — don't commit it if the
   password matters.
-
-See `docs/superpowers/specs/2026-07-04-folder-server-design.md` for the design.
