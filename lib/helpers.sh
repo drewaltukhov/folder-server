@@ -47,11 +47,12 @@ fs_registry_file() { printf '%s\n' "$FS_HOME/registry"; }
 
 fs_registry_get() {
   local domain="$1"
-  local f
+  local f re
   f="$(fs_registry_file)"
   [ -f "$f" ] || return 1
+  re=$(printf '%s' "$domain" | sed 's/[.[\*^$]/\\&/g')
   local line
-  line="$(grep -m1 "^${domain}|" "$f" 2>/dev/null)" || return 1
+  line="$(grep -m1 "^${re}|" "$f" 2>/dev/null)" || return 1
   [ -n "$line" ] || return 1
   printf '%s\n' "$line"
 }
@@ -66,22 +67,24 @@ fs_registry_field() {
 
 fs_registry_set() {
   local domain="$1" dir="$2" port="$3" php="$4"
-  local f tmp
+  local f tmp re
   f="$(fs_registry_file)"
   fs_ensure_home
-  tmp="$(mktemp)"
-  grep -v "^${domain}|" "$f" 2>/dev/null >"$tmp" || true
+  re=$(printf '%s' "$domain" | sed 's/[.[\*^$]/\\&/g')
+  tmp="$(mktemp "${f}.XXXXXX")"
+  grep -v "^${re}|" "$f" 2>/dev/null >"$tmp" || true
   printf '%s|%s|%s|%s\n' "$domain" "$dir" "$port" "$php" >>"$tmp"
   mv "$tmp" "$f"
 }
 
 fs_registry_remove() {
   local domain="$1"
-  local f tmp
+  local f tmp re
   f="$(fs_registry_file)"
   [ -f "$f" ] || return 0
-  tmp="$(mktemp)"
-  grep -v "^${domain}|" "$f" 2>/dev/null >"$tmp" || true
+  re=$(printf '%s' "$domain" | sed 's/[.[\*^$]/\\&/g')
+  tmp="$(mktemp "${f}.XXXXXX")"
+  grep -v "^${re}|" "$f" 2>/dev/null >"$tmp" || true
   mv "$tmp" "$f"
 }
 
