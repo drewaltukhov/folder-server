@@ -30,6 +30,7 @@ from Homebrew packages and a handful of shell scripts. No Electron, no Intel bin
 - 🐘 **Per-folder PHP** — pick `8.3` / `8.4` / `8.5` per project
 - 🟢 **Node / npm projects too** — serve a dev server (Vite, Astro, Next, …) or a static build at `<name>.test`
 - 🗄️ **MySQL on demand** — opt in per project; the database + user are auto-provisioned
+- 📱 **Test on your phone** — opt in with `lan=on` to also serve the site over the LAN at `https://<mac>.local:<port>`
 - 🔀 **`.htaccess`-style routing** — front-controller rewrites for WordPress / Laravel / etc.
 - 🖥️ **Live dashboard** — start/stop, edit config, view logs, unbind — all from `fs dash`
 - 🧹 **Clean lifecycle** — guided `install` / `setup` / `fix` / `uninstall` scripts
@@ -102,6 +103,7 @@ routing, and optional MySQL (with a login/password).
 | `fs logs` | Tail this folder's PHP log |
 | `fs db start\|stop\|status` | Control the shared MySQL service |
 | `fs autostart on\|off\|status` | Start every known site at login (launchd agent) |
+| `fs lan on\|off\|status\|ca` | Expose this site to the local network (phones/tablets); `ca` prints the one-time trust guide |
 | `fs unbind` / `fs unbind --all` | Stop, delete `.folderserver`, and forget the site (or every site) |
 
 ## Configuration — `.folderserver`
@@ -117,6 +119,7 @@ db=on                    # optional — provision MySQL on `fs up` (below)
 db_name=my_project
 db_user=app
 db_pass=secret
+lan=on                   # optional — also serve on the local network (below)
 ```
 
 ### Node / npm projects (`type=node`)
@@ -196,6 +199,39 @@ $pdo = new PDO('mysql:host=127.0.0.1;port=3306;dbname=my_project', 'app', 'secre
   MySQL's passwordless `root@localhost`); `127.0.0.1` uses TCP with your user.
 - Credentials live in plaintext in `.folderserver` — don't commit it if the
   password matters.
+
+### Test on your phone (`lan`)
+
+Set `lan=on` (via `fs init`, `fs edit`, or `fs lan on`) and `fs up` also publishes
+the site to your local network over mDNS — no DNS setup on the phone:
+
+```
+Serving ~/Sites/my-project → https://my-project.test (php 8.4, port 51843)
+  ↳ network: https://users-mac.local:8443   (open on your phone …)
+```
+
+Open that `https://<mac>.local:<port>` URL on any device on the same Wi-Fi. Each
+site gets its own stable port (from `8443` up), and the URL shows in `fs up`,
+`fs list`, and `fs lan status`.
+
+**One-time per device:** trusted HTTPS needs the device to trust folder-server's
+local certificate authority — there's no way around this for a private cert. Run:
+
+```sh
+fs lan ca      # prints the rootCA.pem location + step-by-step trust guide
+```
+
+AirDrop `rootCA.pem` to the phone, install the profile, then **enable it under
+Settings → General → About → Certificate Trust Settings** (the step everyone
+forgets). After that, every `lan=on` site loads with a green padlock. `fs lan ca`
+covers iPhone/iPad, Android, and another Mac.
+
+**Good to know:**
+- Only devices with the CA installed get valid HTTPS; it's a private CA, so a
+  public/registered domain isn't involved.
+- If a phone can't connect and the macOS firewall is on, allow incoming
+  connections for `caddy` (System Settings → Network → Firewall → Options).
+- Turn it off any time with `fs lan off` (or `lan=off` in `.folderserver`).
 
 ## Maintenance & troubleshooting
 

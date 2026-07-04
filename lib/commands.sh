@@ -9,9 +9,11 @@ _fs_load_config() {
   FS_DOMAIN=""; FS_PHP=""; FS_DOCROOT=""; FS_REWRITE=""
   FS_DB=""; FS_DB_NAME=""; FS_DB_USER=""; FS_DB_PASS=""
   FS_TYPE=""; FS_MODE=""; FS_COMMAND=""; FS_BUILD=""; FS_PORT=""; FS_INSTALL=""
+  FS_LAN=""
   while IFS='=' read -r k v; do
     case "$k" in
       install) FS_INSTALL="$v" ;;
+      lan)     FS_LAN="$v" ;;
       domain)  FS_DOMAIN="$v" ;;
       php)     FS_PHP="$v" ;;
       docroot) FS_DOCROOT="$v" ;;
@@ -36,6 +38,7 @@ fs_write_config() {
   local dir="$1" domain="$2" php="$3" docroot="$4" rewrite="$5"
   local db="$6" db_name="$7" db_user="$8" db_pass="$9"
   local type="${10:-php}" mode="${11:-dev}" command="${12:-}" build="${13:-}" port="${14:-}" install="${15:-}"
+  local lan="${16:-}"
   {
     printf 'domain=%s\n' "$domain"
     if [ "$type" = node ]; then
@@ -61,6 +64,7 @@ fs_write_config() {
       printf 'db_user=%s\n' "$db_user"
       printf 'db_pass=%s\n' "$db_pass"
     fi
+    if fs_db_enabled "$lan"; then printf 'lan=on\n'; fi
   } >"$dir/.folderserver"
 }
 
@@ -207,6 +211,7 @@ fs_unbind_domain() {
   fs_stop_php "$domain"
   fs_remove_router "$domain"
   fs_remove_site "$domain"
+  fs_lan_port_forget "$domain"
   fs_caddy_reload || true
   [ -n "$dir" ] && rm -f "$dir/.folderserver"
   fs_registry_remove "$domain"
@@ -333,12 +338,14 @@ fs_up_php() {
   fs_ensure_site_cert "$FS_DOMAIN"
   fs_write_site "$FS_DOMAIN" "$port"
   fs_registry_set "$FS_DOMAIN" "$dir" "$port" "php $FS_PHP"
+  _fs_publish_lan_if_on "$FS_DOMAIN"
   fs_caddy_reload || true
   if [ -n "$FS_REWRITE" ]; then
     echo "Serving $dir → https://$FS_DOMAIN (php $FS_PHP, port $port, rewrite → $FS_REWRITE)"
   else
     echo "Serving $dir → https://$FS_DOMAIN (php $FS_PHP, port $port)"
   fi
+  fs_lan_report
   _fs_maybe_provision_db
 }
 
@@ -371,8 +378,10 @@ fs_up_node_dev() {
   local actual; actual="$(fs_detect_running_port "$FS_DOMAIN" "$port")"
   fs_write_devproxy_site "$FS_DOMAIN" "$actual"
   fs_registry_set "$FS_DOMAIN" "$dir" "$actual" "node dev"
+  _fs_publish_lan_if_on "$FS_DOMAIN"
   fs_caddy_reload || true
   echo "Serving $dir → https://$FS_DOMAIN (node dev: $FS_COMMAND, port $actual)"
+  fs_lan_report
   _fs_maybe_provision_db
 }
 
@@ -387,8 +396,10 @@ fs_up_node_build() {
   fi
   fs_write_static_site "$FS_DOMAIN" "$FS_DOCROOT" "$FS_REWRITE"
   fs_registry_set "$FS_DOMAIN" "$dir" "-" "node build"
+  _fs_publish_lan_if_on "$FS_DOMAIN"
   fs_caddy_reload || true
   echo "Serving $dir → https://$FS_DOMAIN (static from $FS_DOCROOT)"
+  fs_lan_report
   _fs_maybe_provision_db
 }
 
@@ -406,6 +417,215 @@ fs_cmd_down() {
 fs_cmd_restart() {
   fs_cmd_down "$@"
   fs_cmd_up "$@"
+}
+
+# --- LAN exposure ----------------------------------------------------------
+# When a site's .folderserver has `lan=on`, `fs up` also publishes it to the
+# local network over mDNS at https://<mac>.local:<port> with trusted HTTPS
+# (after the mkcert CA is installed on the device once — see `fs lan ca`).
+: "${FS_LAN_PORT_BASE:=8443}"   # per-site LAN ports are assigned from here up
+
+# per-site LAN port registry — "$FS_HOME/lan-ports", lines "<domain>|<port>".
+fs_lan_ports_file() { printf '%s\n' "$FS_HOME/lan-ports"; }
+
+# fs_lan_port_get <domain> — echo the site's assigned LAN port, or nothing.
+fs_lan_port_get() {
+  local f re; f="$(fs_lan_ports_file)"; [ -f "$f" ] || return 0
+  re=$(printf '%s' "$1" | sed 's/[.[\*^$]/\\&/g')
+  grep "^${re}|" "$f" 2>/dev/null | head -1 | cut -d'|' -f2
+}
+
+# fs_lan_port <domain> — echo a STABLE LAN port for the site, allocating and
+# persisting one from FS_LAN_PORT_BASE up on first call (skipping ports already
+# assigned to another site or otherwise in use). Stable ⇒ the phone URL doesn't
+# change between restarts.
+fs_lan_port() {
+  local domain="$1" f used p port
+  port="$(fs_lan_port_get "$domain")"
+  [ -n "$port" ] && { printf '%s\n' "$port"; return 0; }
+  f="$(fs_lan_ports_file)"; fs_ensure_home; [ -f "$f" ] || : >"$f"
+  used="$(cut -d'|' -f2 "$f" 2>/dev/null || true)"
+  for p in $(seq "$FS_LAN_PORT_BASE" $((FS_LAN_PORT_BASE + 200))); do
+    printf '%s\n' "$used" | grep -qx "$p" && continue
+    fs_port_in_use "$p" && continue
+    port="$p"; break
+  done
+  [ -n "$port" ] || { echo "fs: no free LAN port near $FS_LAN_PORT_BASE" >&2; return 1; }
+  printf '%s|%s\n' "$domain" "$port" >>"$f"
+  printf '%s\n' "$port"
+}
+
+# fs_lan_port_forget <domain> — drop the site's LAN port assignment (on unbind).
+fs_lan_port_forget() {
+  local f tmp re; f="$(fs_lan_ports_file)"; [ -f "$f" ] || return 0
+  re=$(printf '%s' "$1" | sed 's/[.[\*^$]/\\&/g')
+  tmp="$(mktemp "${f}.XXXXXX")"; grep -v "^${re}|" "$f" 2>/dev/null >"$tmp" || true; mv "$tmp" "$f"
+}
+
+# echo the Mac's Bonjour name, e.g. "users-mac.local".
+fs_local_host() {
+  local h; h="$(scutil --get LocalHostName 2>/dev/null || true)"
+  [ -n "$h" ] || { echo "fs: no Bonjour hostname set (System Settings → General → Sharing → Local hostname)" >&2; return 1; }
+  printf '%s.local\n' "$h"
+}
+
+# print a comprehensive, one-time root-CA install guide for a new device.
+# Trusting this CA once makes every https://<mac>.local site load without any
+# warning on that device. It only needs doing once per device.
+fs_lan_ca() {
+  local caroot ca
+  caroot="$("$FS_MKCERT_BIN" -CAROOT 2>/dev/null || true)"
+  ca="$caroot/rootCA.pem"
+  cat <<EOF
+Trust the local certificate authority on your phone/tablet — do this ONCE per
+device, and every https://<mac>.local site loads with a green padlock.
+
+The CA file to send to the device:
+  $ca
+
+──────────────────────────────────────────────────────────────────────────────
+ iPhone / iPad
+──────────────────────────────────────────────────────────────────────────────
+  1. Get the file onto the device:
+       • AirDrop rootCA.pem from this Mac (fastest), or
+       • email it to yourself / drop it in iCloud Drive and open it in Files.
+  2. Install the profile:
+       Settings → "Profile Downloaded" (near the top) → Install
+       → enter your passcode → Install → Install.
+  3. ⚠️ TURN ON FULL TRUST — the step everyone forgets, and without it you
+     still get a certificate warning:
+       Settings → General → About → Certificate Trust Settings
+       → enable the switch next to "mkcert …".
+  4. Done. Open the site's https://…local URL in Safari or Chrome — green lock.
+
+──────────────────────────────────────────────────────────────────────────────
+ Android
+──────────────────────────────────────────────────────────────────────────────
+  1. Send rootCA.pem to the device (AirDrop equivalent / email / Files).
+  2. Settings → Security → More → Encryption & credentials
+       → Install a certificate → CA certificate → pick rootCA.pem.
+     (Wording varies by Android version; search Settings for "CA certificate".)
+  Note: Chrome on Android trusts user-installed CAs; some apps do not.
+
+──────────────────────────────────────────────────────────────────────────────
+ Another Mac
+──────────────────────────────────────────────────────────────────────────────
+  Copy rootCA.pem over and run:  mkcert -install
+  (or double-click it in Keychain Access → set "Always Trust").
+
+Tip: this file is only a *trust anchor* — it lets the device verify certs this
+Mac issues. Keep rootCA-key.pem (next to it) private; never send that one.
+EOF
+}
+
+# warn if the macOS application firewall might block incoming LAN connections.
+: "${FS_FIREWALL_BIN:=/usr/libexec/ApplicationFirewall/socketfilterfw}"
+fs_lan_firewall_hint() {
+  local fw="$FS_FIREWALL_BIN"
+  [ -x "$fw" ] || return 0
+  if "$fw" --getglobalstate 2>/dev/null | grep -qi "enabled"; then
+    echo
+    echo "Note: the macOS firewall is on. If the phone can't connect, allow incoming"
+    echo "connections for caddy (System Settings → Network → Firewall → Options)."
+  fi
+}
+
+# fs_lan_expose <domain> <kind> <args...> — publish an already-up site to the
+# LAN over mDNS and set FS_LAN_URL to https://<mac>.local:<port>. Writes the
+# Caddy block but does NOT reload (the caller's single reload covers it).
+#   kind=proxy  <backend-port>       kind=static <docroot> [fallback]
+# Best-effort: on any problem it warns, leaves FS_LAN_URL empty, and never fails
+# the primary serve.
+fs_lan_expose() {
+  local domain="$1" kind="$2"; shift 2
+  local host lanport
+  FS_LAN_URL=""
+  if ! host="$(fs_local_host 2>/dev/null)"; then
+    echo "fs: network exposure skipped — no Bonjour hostname (System Settings → General → Sharing)" >&2; return 0
+  fi
+  lanport="$(fs_lan_port "$domain")" || { echo "fs: network exposure skipped — no free LAN port" >&2; return 0; }
+  fs_ensure_site_cert "$host" || { echo "fs: network exposure skipped — cert for $host failed" >&2; return 0; }
+  case "$kind" in
+    proxy)  [ -n "${1:-}" ] || { echo "fs: network exposure skipped — no backend port" >&2; return 0; }
+            fs_write_lan_site "$domain" "$host" "$lanport" "$1" ;;
+    static) fs_write_lan_static_site "$domain" "$host" "$lanport" "$1" "${2:-}" ;;
+    *)      echo "fs: network exposure skipped — unknown kind '$kind'" >&2; return 0 ;;
+  esac
+  FS_LAN_URL="https://$host:$lanport"
+}
+
+# _fs_publish_lan_if_on <domain> — if FS_LAN is on, publish the current (already
+# registered, block-written) site to the LAN, picking proxy vs static from the
+# loaded FS_TYPE/FS_MODE. Sets FS_LAN_URL. Assumes the caller reloads Caddy.
+_fs_publish_lan_if_on() {
+  local domain="$1" backend
+  FS_LAN_URL=""
+  fs_db_enabled "$FS_LAN" || return 0
+  if [ "$FS_TYPE" = node ] && [ "$FS_MODE" = build ]; then
+    fs_lan_expose "$domain" static "$FS_DOCROOT" "$FS_REWRITE"
+  else
+    backend="$(fs_registry_field "$domain" 3 2>/dev/null || true)"
+    fs_lan_expose "$domain" proxy "$backend"
+  fi
+}
+
+# print the LAN URL line after a "Serving …" message, when one was published.
+fs_lan_report() {
+  [ -n "${FS_LAN_URL:-}" ] || return 0
+  printf '  \xe2\x86\xb3 network: %s   (open on your phone — first device? run: fs lan ca)\n' "$FS_LAN_URL"
+  fs_lan_firewall_hint
+}
+
+# _fs_set_lan_flag <dir> <on|off> — rewrite .folderserver with lan flipped,
+# preserving every other setting.
+_fs_set_lan_flag() {
+  local dir="$1" flag="$2" raw_docroot
+  _fs_load_config "$dir"
+  raw_docroot="$(fs_config_get "$dir/.folderserver" docroot)"
+  fs_write_config "$dir" "$FS_DOMAIN" "$FS_PHP" "$raw_docroot" "$FS_REWRITE" \
+    "$FS_DB" "$FS_DB_NAME" "$FS_DB_USER" "$FS_DB_PASS" \
+    "$FS_TYPE" "$FS_MODE" "$FS_COMMAND" "$FS_BUILD" "$FS_PORT" "$FS_INSTALL" "$flag"
+}
+
+# fs_cmd_lan [on|off|status|ca] — manage LAN exposure for the current site.
+#   ca      show the one-time per-device CA-trust guide (no site needed)
+#   on      set lan=on; publish now if the site is up
+#   off     set lan=off; remove the LAN block now
+#   status  (default) report whether this site is exposed, and its URL
+fs_cmd_lan() {
+  local sub="${1:-status}" dir="$PWD"
+  [ "$sub" = ca ] && { fs_lan_ca; return 0; }
+
+  [ -f "$dir/.folderserver" ] || { echo "fs: no .folderserver in $dir (run 'fs init' first)" >&2; return 1; }
+  _fs_load_config "$dir"
+  local host lp
+  host="$(fs_local_host 2>/dev/null || true)"
+  lp="$(fs_lan_port_get "$FS_DOMAIN")"
+
+  case "$sub" in
+    on)
+      _fs_set_lan_flag "$dir" on; FS_LAN=on
+      echo "lan=on for $FS_DOMAIN"
+      if [ -f "$FS_CADDY_SITES/$FS_DOMAIN.caddy" ]; then
+        _fs_publish_lan_if_on "$FS_DOMAIN"; fs_caddy_reload || true
+        fs_lan_report
+      else
+        echo "Run 'fs up' to publish it to the network."
+      fi ;;
+    off)
+      _fs_set_lan_flag "$dir" off
+      fs_remove_lan_site "$FS_DOMAIN"; fs_caddy_reload || true
+      echo "lan=off for $FS_DOMAIN (removed from the network)" ;;
+    status)
+      if [ -f "$FS_CADDY_SITES/$FS_DOMAIN.lan.caddy" ] && [ -n "$host" ] && [ -n "$lp" ]; then
+        echo "$FS_DOMAIN is on the network:  https://$host:$lp"
+      elif fs_db_enabled "$FS_LAN"; then
+        echo "$FS_DOMAIN has lan=on but isn't published yet — run 'fs up'."
+      else
+        echo "$FS_DOMAIN is not on the network (run 'fs lan on', then 'fs up')."
+      fi ;;
+    *) echo "fs: usage: fs lan [on|off|status|ca]" >&2; return 2 ;;
+  esac
 }
 
 # echo an installed PHP version (prefers 8.4) — for zero-config `fs serve`.
@@ -447,12 +667,17 @@ fs_site_status() {
 
 fs_cmd_list() {
   printf '%-32s %-8s %-6s %-10s %s\n' DOMAIN STATUS PORT RUNTIME URL
-  local d port runtime status
+  local d port runtime status host lp
+  host="$(fs_local_host 2>/dev/null || true)"
   while IFS= read -r d; do
     [ -n "$d" ] || continue
     port="$(fs_registry_field "$d" 3 2>/dev/null)"; runtime="$(fs_registry_field "$d" 4 2>/dev/null)"
     status="$(fs_site_status "$d")"
     printf '%-32s %-8s %-6s %-10s %s\n' "$d" "$status" "$port" "$runtime" "https://$d"
+    if [ -f "$FS_CADDY_SITES/$d.lan.caddy" ] && [ -n "$host" ]; then
+      lp="$(fs_lan_port_get "$d")"
+      [ -n "$lp" ] && printf '%-32s %s\n' "" "↳ network: https://$host:$lp"
+    fi
   done < <(fs_registry_domains)
 }
 
@@ -484,6 +709,7 @@ _fs_prompt_config() {
   local dir="$1" cur_type="$2" d_domain="$3" d_php="$4" d_docroot="$5" d_rewrite="$6"
   local d_db="$7" d_dbname="$8" d_dbuser="$9" d_dbpass="${10}"
   local d_mode="${11:-dev}" d_command="${12:-}" d_port="${13:-}" d_build="${14:-}" d_install="${15:-}"
+  local d_lan="${16:-}"
 
   NC_DOMAIN="$("$FS_GUM_BIN" input --value "$d_domain" --header "Domain")"
 
@@ -530,6 +756,13 @@ _fs_prompt_config() {
     NC_DB_USER="$("$FS_GUM_BIN" input --value "${d_dbuser:-app}" --header "Database user")"
     NC_DB_PASS="$("$FS_GUM_BIN" input --password --value "$d_dbpass" --header "Database password")"
   fi
+
+  # LAN exposure — available for either runtime.
+  NC_LAN=off
+  local lan_def=--default=false; fs_db_enabled "$d_lan" && lan_def=--default
+  if "$FS_GUM_BIN" confirm "$lan_def" "Expose to the local network (open on phones/tablets)?"; then
+    NC_LAN=on
+  fi
 }
 
 fs_cmd_init() {
@@ -550,11 +783,12 @@ fs_cmd_init() {
 
   if _fs_have_gum_tty; then
     _fs_prompt_config "$dir" "$detected" "$(fs_default_domain "$dir")" 8.4 "" "" \
-      off "$(fs_default_dbname "$dir")" app "" dev "" "" "" ""
+      off "$(fs_default_dbname "$dir")" app "" dev "" "" "" "" off
   else
     NC_DOMAIN="$(fs_default_domain "$dir")"; NC_PHP=8.4; NC_DOCROOT=""; NC_REWRITE=""
     NC_DB=off; NC_DB_NAME=""; NC_DB_USER=""; NC_DB_PASS=""
     NC_TYPE=php; NC_MODE=dev; NC_COMMAND=""; NC_BUILD=""; NC_PORT=""; NC_INSTALL=""
+    NC_LAN=off
     if [ "$detected" = node ]; then
       # non-interactive in a node folder → sensible node-dev defaults, auto-install on
       NC_TYPE=node
@@ -566,7 +800,7 @@ fs_cmd_init() {
   fi
   fs_write_config "$dir" "$NC_DOMAIN" "$NC_PHP" "$NC_DOCROOT" "$NC_REWRITE" \
     "$NC_DB" "$NC_DB_NAME" "$NC_DB_USER" "$NC_DB_PASS" \
-    "$NC_TYPE" "$NC_MODE" "$NC_COMMAND" "$NC_BUILD" "$NC_PORT" "$NC_INSTALL"
+    "$NC_TYPE" "$NC_MODE" "$NC_COMMAND" "$NC_BUILD" "$NC_PORT" "$NC_INSTALL" "$NC_LAN"
   echo "Wrote $file"
 }
 
@@ -590,10 +824,10 @@ fs_cmd_edit() {
 
   _fs_prompt_config "$dir" "$FS_TYPE" "$FS_DOMAIN" "$FS_PHP" "$raw_docroot" "$FS_REWRITE" \
     "$FS_DB" "$FS_DB_NAME" "$FS_DB_USER" "$FS_DB_PASS" \
-    "$FS_MODE" "$FS_COMMAND" "$FS_PORT" "$FS_BUILD" "$FS_INSTALL"
+    "$FS_MODE" "$FS_COMMAND" "$FS_PORT" "$FS_BUILD" "$FS_INSTALL" "$FS_LAN"
   fs_write_config "$dir" "$NC_DOMAIN" "$NC_PHP" "$NC_DOCROOT" "$NC_REWRITE" \
     "$NC_DB" "$NC_DB_NAME" "$NC_DB_USER" "$NC_DB_PASS" \
-    "$NC_TYPE" "$NC_MODE" "$NC_COMMAND" "$NC_BUILD" "$NC_PORT" "$NC_INSTALL"
+    "$NC_TYPE" "$NC_MODE" "$NC_COMMAND" "$NC_BUILD" "$NC_PORT" "$NC_INSTALL" "$NC_LAN"
   echo "Updated $dir/.folderserver"
 
   if [ "$was_running" = yes ]; then
