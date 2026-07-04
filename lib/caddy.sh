@@ -36,6 +36,38 @@ fs_write_site() {
   fs_render_site "$domain" "$port" >"$FS_CADDY_SITES/$domain.caddy"
 }
 
+# fs_write_devproxy_site <domain> <port> — like fs_write_site but rewrites the
+# upstream Host to the loopback address. Node dev servers (Vite/Astro/etc.)
+# reject proxied hostnames they don't recognise ("Blocked request … not
+# allowed"); rewriting Host to 127.0.0.1:<port> makes them accept it.
+fs_write_devproxy_site() {
+  local domain="$1" port="$2" cert key
+  { read -r cert; read -r key; } < <(fs_cert_paths "$domain")
+  mkdir -p "$FS_CADDY_SITES"
+  {
+    printf '%s {\n\ttls %s %s\n' "$domain" "$cert" "$key"
+    printf '\treverse_proxy 127.0.0.1:%s {\n\t\theader_up Host 127.0.0.1:%s\n\t}\n' "$port" "$port"
+    printf '}\n'
+  } >"$FS_CADDY_SITES/$domain.caddy"
+}
+
+# fs_render_static_site <domain> <docroot> [spa-fallback] — a snippet that serves
+# a folder as static files (for `type=node, mode=build`). With a fallback file
+# (e.g. index.html) it does SPA client-side routing via try_files.
+fs_render_static_site() {
+  local domain="$1" docroot="$2" fallback="${3:-}" cert key
+  { read -r cert; read -r key; } < <(fs_cert_paths "$domain")
+  printf '%s {\n\ttls %s %s\n\troot * %s\n' "$domain" "$cert" "$key" "$docroot"
+  [ -n "$fallback" ] && printf '\ttry_files {path} /%s\n' "$fallback"
+  printf '\tfile_server\n}\n'
+}
+
+fs_write_static_site() {
+  local domain="$1" docroot="$2" fallback="${3:-}"
+  mkdir -p "$FS_CADDY_SITES"
+  fs_render_static_site "$domain" "$docroot" "$fallback" >"$FS_CADDY_SITES/$domain.caddy"
+}
+
 fs_remove_site() {
   rm -f "$FS_CADDY_SITES/$1.caddy"
 }
