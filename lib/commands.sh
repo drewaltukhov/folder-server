@@ -73,3 +73,35 @@ fs_cmd_logs() {
   if [ ! -f "$log" ]; then echo "fs: no log for $FS_DOMAIN yet"; return 0; fi
   "$FS_TAIL_BIN" -n 50 -f "$log"
 }
+
+: "${FS_GUM_BIN:=gum}"
+
+fs_cmd_init() {
+  local dir="$PWD" force=0 a
+  for a in "$@"; do
+    case "$a" in
+      --force) force=1 ;;
+      *) dir="$a" ;;
+    esac
+  done
+  local file="$dir/.folderserver"
+  if [ -f "$file" ] && [ "$force" -ne 1 ]; then
+    echo "fs: $file exists (use --force to overwrite)" >&2
+    return 1
+  fi
+  local domain php docroot
+  domain="$(fs_default_domain "$dir")"
+  php="8.4"
+  docroot=""
+  if [ -t 0 ] && command -v "$FS_GUM_BIN" >/dev/null 2>&1; then
+    domain="$("$FS_GUM_BIN" input --value "$domain" --prompt "Domain: ")"
+    php="$("$FS_GUM_BIN" choose 8.4 8.5 8.3 --header "PHP version")"
+    docroot="$("$FS_GUM_BIN" input --placeholder "public (blank = folder root)" --prompt "Docroot: ")"
+  fi
+  {
+    printf 'domain=%s\n' "$domain"
+    printf 'php=%s\n' "$php"
+    [ -n "$docroot" ] && printf 'docroot=%s\n' "$docroot"
+  } >"$file"
+  echo "Wrote $file"
+}
