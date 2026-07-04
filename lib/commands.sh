@@ -108,6 +108,9 @@ fs_cmd_init() {
 
 : "${FS_BREW_BIN:=brew}"
 : "${FS_MYSQL_FORMULA:=mysql}"
+: "${FS_MKCERT_BIN:=mkcert}"
+: "${FS_DNSMASQ_CONF:=/opt/homebrew/etc/dnsmasq.d/test.conf}"
+: "${FS_RESOLVER_DIR:=/etc/resolver}"
 
 fs_cmd_db() {
   local action="${1:-}"
@@ -117,4 +120,55 @@ fs_cmd_db() {
     status) "$FS_BREW_BIN" services list ;;
     *) echo "Usage: fs db <start|stop|status>" >&2; return 2 ;;
   esac
+}
+
+fs_setup_deps() {
+  local pkg
+  for pkg in dnsmasq caddy gum fzf; do
+    if ! "$FS_BREW_BIN" list "$pkg" >/dev/null 2>&1; then
+      echo "Installing $pkg…"; "$FS_BREW_BIN" install "$pkg"
+    fi
+  done
+}
+
+fs_setup_dnsmasq() {
+  mkdir -p "$(dirname "$FS_DNSMASQ_CONF")"
+  local line="address=/.test/127.0.0.1"
+  if [ -f "$FS_DNSMASQ_CONF" ] && grep -qF "$line" "$FS_DNSMASQ_CONF"; then return 0; fi
+  printf '%s\n' "$line" >>"$FS_DNSMASQ_CONF"
+}
+
+fs_setup_cert() {
+  local cert
+  local key
+  { read -r cert; read -r key; } < <(fs_cert_paths)
+  if [ -f "$cert" ] && [ -f "$key" ]; then return 0; fi
+  mkdir -p "$FS_CERT_DIR"
+  "$FS_MKCERT_BIN" -cert-file "$cert" -key-file "$key" "*.test"
+}
+
+fs_setup_caddy_config() {
+  local imp="import $FS_CADDY_SITES/*.caddy"
+  mkdir -p "$(dirname "$FS_CADDY_CONFIG")" "$FS_CADDY_SITES"
+  if [ -f "$FS_CADDY_CONFIG" ] && grep -qF "$imp" "$FS_CADDY_CONFIG"; then return 0; fi
+  printf '%s\n' "$imp" >>"$FS_CADDY_CONFIG"
+}
+
+fs_cmd_setup() {
+  fs_ensure_home
+  echo "==> Installing dependencies"; fs_setup_deps
+  echo "==> Configuring dnsmasq for *.test"; fs_setup_dnsmasq
+  echo "==> Generating wildcard certificate"; fs_setup_cert
+  echo "==> Wiring Caddy import"; fs_setup_caddy_config
+  cat <<EOF
+
+Almost done. Run these once (they need sudo / your password):
+
+  sudo mkdir -p $FS_RESOLVER_DIR
+  echo "nameserver 127.0.0.1" | sudo tee $FS_RESOLVER_DIR/test
+  sudo brew services start dnsmasq
+  sudo brew services start caddy
+
+Then: cd into a project, run 'fs init' and 'fs up'.
+EOF
 }
