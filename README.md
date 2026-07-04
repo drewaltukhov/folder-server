@@ -12,6 +12,10 @@ A tiny, brew-based replacement for MAMP Pro on Apple Silicon macOS. Serve any
 folder at `https://<name>.test` with a chosen PHP version, MySQL on demand,
 and a live terminal dashboard.
 
+<p align="center">
+  <img src="docs/dash.svg" alt="fs dash — the live terminal dashboard" width="760">
+</p>
+
 ## Install
 
     ./install.sh          # symlinks `folder-server` and `fs` into /opt/homebrew/bin
