@@ -42,6 +42,19 @@ teardown() { fs_stop_php a.test >/dev/null 2>&1 || true; fs_stop_php b.test >/de
   run fs_is_running b.test; [ "$status" -ne 0 ]
 }
 
+@test "restart --all cycles every known site (new PIDs, still running)" {
+  fs_cmd_up "$A" >/dev/null
+  fs_cmd_up "$B" >/dev/null
+  local oldA oldB
+  oldA="$(cat "$(fs_pidfile a.test)")"; oldB="$(cat "$(fs_pidfile b.test)")"
+
+  fs_cmd_restart --all >/dev/null
+  fs_is_running a.test
+  fs_is_running b.test
+  [ "$(cat "$(fs_pidfile a.test)")" != "$oldA" ]
+  [ "$(cat "$(fs_pidfile b.test)")" != "$oldB" ]
+}
+
 @test "up --all on an empty registry reports no sites (does not error)" {
   run fs_cmd_up --all
   [ "$status" -eq 0 ]
