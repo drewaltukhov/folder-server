@@ -44,3 +44,29 @@ fs_cmd_restart() {
   fs_cmd_down "$@"
   fs_cmd_up "$@"
 }
+
+: "${FS_OPEN_BIN:=open}"
+: "${FS_TAIL_BIN:=tail}"
+
+fs_cmd_list() {
+  printf '%-24s %-8s %-6s %-4s %s\n' DOMAIN STATUS PORT PHP URL
+  local d dir port php status
+  while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    dir="$(fs_registry_field "$d" 2)"; port="$(fs_registry_field "$d" 3)"; php="$(fs_registry_field "$d" 4)"
+    if fs_is_running "$d"; then status="running"; else status="stopped"; fi
+    printf '%-24s %-8s %-6s %-4s %s\n' "$d" "$status" "$port" "$php" "https://$d"
+  done < <(fs_registry_domains)
+}
+
+fs_cmd_open() {
+  local dir="${1:-$PWD}"; _fs_load_config "$dir"
+  "$FS_OPEN_BIN" "https://$FS_DOMAIN"
+}
+
+fs_cmd_logs() {
+  local dir="${1:-$PWD}"; _fs_load_config "$dir"
+  local log; log="$(fs_logfile "$FS_DOMAIN")"
+  if [ ! -f "$log" ]; then echo "fs: no log for $FS_DOMAIN yet"; return 0; fi
+  "$FS_TAIL_BIN" -n 50 -f "$log"
+}
