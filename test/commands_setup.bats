@@ -8,6 +8,20 @@ setup() {
   fs_ensure_home
 }
 
+@test "setup_deps installs mkcert (needed for the local CA)" {
+  # brew stub: `list` fails (package "missing") so every dep hits the install path.
+  local dir="$BATS_TEST_TMPDIR/stubbin"; mkdir -p "$dir"
+  cat >"$dir/brew" <<EOF
+#!/usr/bin/env bash
+echo "\$@" >>"$BATS_TEST_TMPDIR/brew.log"
+[ "\$1" = list ] && exit 1
+exit 0
+EOF
+  chmod +x "$dir/brew"; export PATH="$dir:$PATH"; export FS_BREW_BIN=brew
+  fs_setup_deps
+  grep -q '^install mkcert$' "$BATS_TEST_TMPDIR/brew.log"
+}
+
 @test "setup_dnsmasq writes the wildcard line once (idempotent)" {
   fs_setup_dnsmasq
   fs_setup_dnsmasq

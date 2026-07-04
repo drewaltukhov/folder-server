@@ -623,7 +623,7 @@ fs_cmd_db() {
 
 fs_setup_deps() {
   local pkg
-  for pkg in dnsmasq caddy gum fzf; do
+  for pkg in dnsmasq caddy gum fzf mkcert; do
     if ! "$FS_BREW_BIN" list "$pkg" >/dev/null 2>&1; then
       echo "Installing $pkg..."; "$FS_BREW_BIN" install "$pkg"
     fi
@@ -666,7 +666,7 @@ fs_cmd_setup() {
   fs_ensure_home
   echo "==> Installing dependencies"; fs_setup_deps
   echo "==> Configuring dnsmasq for *.test"; fs_setup_dnsmasq
-  echo "==> Generating wildcard certificate"; fs_setup_cert
+  echo "==> Installing the mkcert local CA"; fs_setup_cert
   echo "==> Wiring Caddy import"; fs_setup_caddy_config
   cat <<EOF
 
