@@ -69,7 +69,17 @@ EOF
   grep -q 'services start mysql' "$BATS_TEST_TMPDIR/brew.log"
   grep -q 'CREATE DATABASE IF NOT EXISTS `shopdb`' "$BATS_TEST_TMPDIR/mysql.sql"
   grep -q "CREATE USER IF NOT EXISTS 'shopuser'@'%' IDENTIFIED BY 'p@ss'" "$BATS_TEST_TMPDIR/mysql.sql"
+  grep -q "ALTER USER 'shopuser'@'localhost' IDENTIFIED BY 'p@ss'" "$BATS_TEST_TMPDIR/mysql.sql"
   grep -q "GRANT ALL PRIVILEGES ON \`shopdb\`.\* TO 'shopuser'@'%'" "$BATS_TEST_TMPDIR/mysql.sql"
+}
+
+@test "fs_db_provision refuses to use the admin account as the app user" {
+  _stub_mysql
+  FS_MYSQL_ADMIN=root
+  run fs_db_provision shopdb root secret
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"cannot be 'root'"* ]]
+  [ ! -f "$BATS_TEST_TMPDIR/mysql.sql" ]
 }
 
 @test "fs_db_provision escapes single quotes in the password" {
@@ -99,7 +109,12 @@ EOF
 
   run fs_cmd_up "$PROJ"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"DB ready"* ]]
+  [[ "$output" == *"MySQL ready"* ]]
+  [[ "$output" == *"host      127.0.0.1"* ]]
+  [[ "$output" == *"port      3306"* ]]
+  [[ "$output" == *"database  shopdb"* ]]
+  [[ "$output" == *"user      shopuser"* ]]
+  [[ "$output" == *"password  secret"* ]]
   grep -q 'CREATE DATABASE IF NOT EXISTS `shopdb`' "$BATS_TEST_TMPDIR/mysql.sql"
 
   fs_stop_php app.test >/dev/null 2>&1 || true
