@@ -19,8 +19,8 @@ Usage: fs <command> [args]
 
   setup             One-time machine setup (dnsmasq, caddy, cert, deps)
   init              Create a .folderserver config in the current folder
-  up                Start serving the current folder
-  down              Stop serving the current folder
+  up [--all]        Start serving the current folder (or every known site)
+  down [--all]      Stop serving the current folder (or every running site)
   restart           Restart the current folder
   edit              Edit the current folder's config (php, routing, MySQL)
   unbind            Stop, delete .folderserver, and forget the current folder

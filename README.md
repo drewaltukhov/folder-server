@@ -43,10 +43,11 @@ stale site processes — fixing each with your OK (or all of them with `--yes`).
     cd ~/Sites/my-project
     fs init               # interactive setup → writes .folderserver
     fs up                 # serves https://my-project.test
+    fs up --all           # start every known site at once
     fs list               # see all sites
     fs dash               # live dashboard (per-site [e]dit, [u]nbind, …)
     fs edit               # change php / routing / MySQL for this folder
-    fs down               # stop
+    fs down               # stop (fs down --all stops every site)
     fs db start           # MySQL when you need it
 
 `fs init` (and the dashboard's `[e]dit`) walk you through the PHP version,

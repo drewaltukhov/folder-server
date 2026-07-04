@@ -155,7 +155,22 @@ fs_cmd_unbind() {
   echo "Unbound $FS_DOMAIN (stopped, removed .folderserver, forgot the site)"
 }
 
+# _fs_each_site <fn> — run <fn> for every known site, passing its directory.
+# One site failing does not stop the rest.
+_fs_each_site() {
+  local fn="$1" d dir any=0
+  while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    dir="$(fs_registry_field "$d" 2 2>/dev/null || true)"
+    [ -n "$dir" ] || continue
+    any=1
+    "$fn" "$dir" || echo "fs: '$fn' failed for $d" >&2
+  done < <(fs_registry_domains)
+  [ "$any" -eq 1 ] || echo "fs: no known sites yet (run 'fs init' + 'fs up' in a project)"
+}
+
 fs_cmd_up() {
+  if [ "${1:-}" = "--all" ]; then _fs_each_site fs_cmd_up; return 0; fi
   local dir="${1:-$PWD}"
   _fs_load_config "$dir"
   if [[ ! "$FS_DOMAIN" =~ ^[A-Za-z0-9._-]+$ ]]; then
@@ -195,6 +210,7 @@ fs_cmd_up() {
 }
 
 fs_cmd_down() {
+  if [ "${1:-}" = "--all" ]; then _fs_each_site fs_cmd_down; return 0; fi
   local dir="${1:-$PWD}"
   _fs_load_config "$dir"
   fs_stop_php "$FS_DOMAIN"
