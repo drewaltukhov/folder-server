@@ -13,7 +13,7 @@ folder at `https://<name>.test` with a chosen PHP version, MySQL on demand,
 and a live terminal dashboard.
 
 <p align="center">
-  <img src="docs/dash.svg" alt="fs dash — the live terminal dashboard" width="760">
+  <img src="docs/dash.png" alt="fs dash — the live terminal dashboard" width="760">
 </p>
 
 ## Install
