@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="folder-server" width="500">
+  <img src="docs/logo.svg" alt="folder-server" width="140">
 </p>
 
 <h1 align="center">Folder Server v1.0</h1>
