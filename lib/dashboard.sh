@@ -9,7 +9,7 @@ fs_dash_render() {
   local php
   local status
   local marker
-  printf '  folder-server — [s]tart/stop [r]estart [o]pen [l]ogs [u]nbind [j/k] move [q]uit\n\n'
+  printf '  folder-server — [s]tart/stop [r]estart [e]dit [o]pen [l]ogs [u]nbind [j/k] move [q]uit\n\n'
   printf '    %-22s %-8s %-6s %-4s\n' DOMAIN STATUS PORT PHP
   while IFS= read -r d; do
     [ -n "$d" ] || continue
@@ -66,6 +66,7 @@ fs_cmd_dash() {
   local domains
   local n
   local domain
+  local dir
   local confirm
   trap 'printf "\033[?25h\033[?1049l"' EXIT INT TERM
   printf '\033[?1049h\033[?25l'
@@ -84,6 +85,15 @@ fs_cmd_dash() {
       k) [ "$sel" -gt 0 ] && sel=$((sel-1)) ;;
       '') : ;;
       q) break ;;
+      e)
+        domain="$(printf '%s\n' "$domains" | sed -n "$((sel+1))p")"
+        [ -n "$domain" ] || continue
+        dir="$(fs_registry_field "$domain" 2 2>/dev/null || true)"
+        [ -n "$dir" ] || continue
+        printf '\033[?25h\033[H\033[2J'   # show cursor + clear for the gum form
+        fs_cmd_edit "$dir" || true
+        printf '\033[?25l'                # re-hide cursor for the dashboard
+        ;;
       u)
         domain="$(printf '%s\n' "$domains" | sed -n "$((sel+1))p")"
         [ -n "$domain" ] || continue

@@ -22,6 +22,7 @@ Usage: fs <command> [args]
   up                Start serving the current folder
   down              Stop serving the current folder
   restart           Restart the current folder
+  edit              Edit the current folder's config (php, routing, MySQL)
   unbind            Stop, delete .folderserver, and forget the current folder
   list              List all known sites and their status
   open              Open the current folder's URL in the browser
@@ -44,6 +45,7 @@ main() {
     up)      fs_cmd_up "$@" ;;
     down)    fs_cmd_down "$@" ;;
     restart) fs_cmd_restart "$@" ;;
+    edit)    fs_cmd_edit "$@" ;;
     unbind)  fs_cmd_unbind "$@" ;;
     list)    fs_cmd_list "$@" ;;
     open)    fs_cmd_open "$@" ;;

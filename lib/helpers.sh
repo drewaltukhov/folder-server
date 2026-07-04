@@ -30,10 +30,20 @@ fs_default_domain() {
   printf '%s.test\n' "$base"
 }
 
+# A MySQL-safe database name derived from the folder: lowercased, every
+# non [a-z0-9] collapsed to a single underscore, trimmed.
+fs_default_dbname() {
+  local dir="$1" base
+  base="$(basename "$dir" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '_')"
+  base="$(printf '%s' "$base" | sed -e 's/__*/_/g' -e 's/^_//' -e 's/_$//')"
+  [ -n "$base" ] || base="app"
+  printf '%s\n' "$base"
+}
+
 fs_resolve_config() {
   local dir="$1"
   local file="$dir/.folderserver"
-  local domain php docroot rewrite
+  local domain php docroot rewrite db db_name db_user db_pass
   domain="$(fs_config_get "$file" domain)"; [ -n "$domain" ] || domain="$(fs_default_domain "$dir")"
   php="$(fs_config_get "$file" php)";       [ -n "$php" ] || php="8.4"
   docroot="$(fs_config_get "$file" docroot)"
@@ -41,7 +51,12 @@ fs_resolve_config() {
   else case "$docroot" in /*) : ;; *) docroot="$dir/$docroot" ;; esac
   fi
   rewrite="$(fs_config_get "$file" rewrite)"
-  printf 'domain=%s\nphp=%s\ndocroot=%s\nrewrite=%s\n' "$domain" "$php" "$docroot" "$rewrite"
+  db="$(fs_config_get "$file" db)"
+  db_name="$(fs_config_get "$file" db_name)"; [ -n "$db_name" ] || db_name="$(fs_default_dbname "$dir")"
+  db_user="$(fs_config_get "$file" db_user)"
+  db_pass="$(fs_config_get "$file" db_pass)"
+  printf 'domain=%s\nphp=%s\ndocroot=%s\nrewrite=%s\ndb=%s\ndb_name=%s\ndb_user=%s\ndb_pass=%s\n' \
+    "$domain" "$php" "$docroot" "$rewrite" "$db" "$db_name" "$db_user" "$db_pass"
 }
 
 fs_registry_file() { printf '%s\n' "$FS_HOME/registry"; }
