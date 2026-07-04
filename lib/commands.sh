@@ -37,6 +37,20 @@ fs_remove_router() {
   rm -f "$(fs_router_file "$1")"
 }
 
+# Fully forget a site: stop it, tear down its Caddy snippet + router, delete the
+# project's .folderserver, and drop it from the registry (so it leaves `fs list`
+# and the dashboard). The inverse of `fs init` + `fs up`.
+fs_unbind_domain() {
+  local domain="$1" dir
+  dir="$(fs_registry_field "$domain" 2 2>/dev/null || true)"
+  fs_stop_php "$domain"
+  fs_remove_router "$domain"
+  fs_remove_site "$domain"
+  fs_caddy_reload || true
+  [ -n "$dir" ] && rm -f "$dir/.folderserver"
+  fs_registry_remove "$domain"
+}
+
 fs_cmd_up() {
   local dir="${1:-$PWD}"
   _fs_load_config "$dir"
