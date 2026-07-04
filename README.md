@@ -78,7 +78,7 @@ optional MySQL (with a login/password).
 | `fs open` | Open this folder's URL in the browser |
 | `fs logs` | Tail this folder's PHP log |
 | `fs db start\|stop\|status` | Control the shared MySQL service |
-| `fs unbind` | Stop, delete `.folderserver`, and forget the site |
+| `fs unbind` / `fs unbind --all` | Stop, delete `.folderserver`, and forget the site (or every site) |
 
 ## Configuration — `.folderserver`
 

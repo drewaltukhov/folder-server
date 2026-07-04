@@ -79,6 +79,26 @@ teardown() { fs_stop_php app.test >/dev/null 2>&1 || true; }
   [ ! -f "$PROJ/.folderserver" ]
 }
 
+@test "unbind --all forgets every site" {
+  A="$BATS_TEST_TMPDIR/a"; B="$BATS_TEST_TMPDIR/b"; mkdir -p "$A" "$B"
+  printf 'domain=a.test\n' >"$A/.folderserver"
+  printf 'domain=b.test\n' >"$B/.folderserver"
+  fs_registry_set a.test "$A" 8000 "php 8.4"
+  fs_registry_set b.test "$B" 8001 "php 8.4"
+  run fs_cmd_unbind --all
+  [ "$status" -eq 0 ]
+  run fs_registry_get a.test; [ "$status" -ne 0 ]
+  run fs_registry_get b.test; [ "$status" -ne 0 ]
+  [ ! -f "$A/.folderserver" ]
+  [ ! -f "$B/.folderserver" ]
+}
+
+@test "unbind --all on an empty registry is a clean no-op" {
+  run fs_cmd_unbind --all
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no sites to unbind"* ]]
+}
+
 @test "unbind dispatches through the real CLI entrypoint" {
   fs_cmd_up "$PROJ" >/dev/null
   run "$FS_BIN" unbind "$PROJ"
