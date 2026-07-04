@@ -130,7 +130,7 @@ fs_setup_deps() {
   local pkg
   for pkg in dnsmasq caddy gum fzf; do
     if ! "$FS_BREW_BIN" list "$pkg" >/dev/null 2>&1; then
-      echo "Installing $pkg…"; "$FS_BREW_BIN" install "$pkg"
+      echo "Installing $pkg..."; "$FS_BREW_BIN" install "$pkg"
     fi
   done
 }
