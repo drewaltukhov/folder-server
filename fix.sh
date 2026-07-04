@@ -9,6 +9,8 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$DIR/lib/helpers.sh"
 # shellcheck source=/dev/null
+. "$DIR/lib/deps.sh"
+# shellcheck source=/dev/null
 . "$DIR/lib/caddy.sh"
 # shellcheck source=/dev/null
 . "$DIR/lib/commands.sh"
@@ -53,7 +55,7 @@ echo "folder-server — setup check"
 echo
 
 # 1. Homebrew dependencies
-for pkg in dnsmasq caddy gum fzf mkcert; do
+for pkg in $FS_BREW_DEPS; do
   if brew list "$pkg" >/dev/null 2>&1; then ok "$pkg installed"
   else
     bad "$pkg not installed"

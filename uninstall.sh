@@ -11,12 +11,18 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$DIR/lib/helpers.sh"
 # shellcheck source=/dev/null
+. "$DIR/lib/deps.sh"
+# shellcheck source=/dev/null
 . "$DIR/lib/caddy.sh"
 
 : "${FS_RESOLVER_DIR:=/etc/resolver}"
 : "${FS_MYSQL_FORMULA:=mysql}"
 : "${FS_DNSMASQ_CONF:=/opt/homebrew/etc/dnsmasq.d/test.conf}"
 : "${PREFIX:=/opt/homebrew/bin}"
+: "${FS_AUTOSTART_PLIST:=$HOME/Library/LaunchAgents/com.folderserver.restore.plist}"
+HB="${PREFIX%/bin}"
+: "${FS_ZSH_COMP:=$HB/share/zsh/site-functions/_fs}"
+: "${FS_BASH_COMP:=$HB/etc/bash_completion.d/fs}"
 
 PURGE=0 ASSUME_YES=0
 for a in "$@"; do
@@ -74,7 +80,20 @@ if [ -f "$FS_CADDY_CONFIG" ] && grep -qF "import $FS_CADDY_SITES/*.caddy" "$FS_C
   grep -vF "import $FS_CADDY_SITES/*.caddy" "$FS_CADDY_CONFIG" >"$tmp" && mv "$tmp" "$FS_CADDY_CONFIG"
 fi
 
-# 5. Remove the CLI symlinks.
+# 5. Remove the login autostart agent (fs autostart), if enabled.
+if [ -f "$FS_AUTOSTART_PLIST" ]; then
+  step "Removing the login autostart agent"
+  launchctl bootout "gui/$(id -u)" "$FS_AUTOSTART_PLIST" >/dev/null 2>&1 || true
+  rm -f "$FS_AUTOSTART_PLIST"
+fi
+
+# 6. Remove the shell completions installed by install.sh.
+if [ -e "$FS_ZSH_COMP" ] || [ -e "$FS_BASH_COMP" ]; then
+  step "Removing shell completions"
+  rm -f "$FS_ZSH_COMP" "$FS_BASH_COMP"
+fi
+
+# 7. Remove the CLI symlinks.
 step "Removing $PREFIX/fs and $PREFIX/folder-server"
 rm -f "$PREFIX/fs" "$PREFIX/folder-server"
 
@@ -83,7 +102,8 @@ echo "folder-server is uninstalled. Its services are stopped and wiring removed.
 
 # --- Optional removal of packages/data — always opt-in ---
 
-remove_deps()  { step "Removing brew packages folder-server installed (dnsmasq, caddy, gum, fzf)"; brew uninstall dnsmasq caddy gum fzf 2>/dev/null || true; }
+# shellcheck disable=SC2086  # FS_BREW_DEPS is a deliberately word-split package list
+remove_deps()  { step "Removing brew packages folder-server installed ($FS_BREW_DEPS)"; brew uninstall $FS_BREW_DEPS 2>/dev/null || true; }
 remove_state() { step "Removing the *.test certificate, dnsmasq config, and ~/.folder-server"; rm -f "$FS_DNSMASQ_CONF"; rm -rf "$FS_CERT_DIR" "$FS_HOME"; }
 remove_mysql() { step "Uninstalling MySQL ($FS_MYSQL_FORMULA) and deleting its databases"; brew uninstall "$FS_MYSQL_FORMULA" 2>/dev/null || true; }
 
@@ -99,7 +119,7 @@ elif [ "$ASSUME_YES" -eq 1 ]; then
 else
   echo
   echo "Optionally remove what folder-server installed (PHP is never touched):"
-  ask "Remove the brew packages it installed — dnsmasq, caddy, gum, fzf?" && remove_deps
+  ask "Remove the brew packages it installed — $FS_BREW_DEPS?" && remove_deps
   ask "Remove the *.test certificate and ~/.folder-server state?" && remove_state
   if ask "Uninstall MySQL too and DELETE all its databases? (you use it — say No to keep it)"; then
     remove_mysql

@@ -621,9 +621,65 @@ fs_cmd_db() {
   esac
 }
 
+: "${FS_AUTOSTART_PLIST:=$HOME/Library/LaunchAgents/com.folderserver.restore.plist}"
+: "${FS_AUTOSTART_LABEL:=com.folderserver.restore}"
+: "${FS_LAUNCHCTL_BIN:=launchctl}"
+
+# fs_autostart_render — write the launchd agent plist that runs `fs up --all`
+# at login. Split out from fs_cmd_autostart so it's testable without launchctl.
+fs_autostart_render() {
+  local self
+  self="${FS_SELF:-$(command -v fs 2>/dev/null || echo /opt/homebrew/bin/fs)}"
+  mkdir -p "$(dirname "$FS_AUTOSTART_PLIST")"
+  cat >"$FS_AUTOSTART_PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$FS_AUTOSTART_LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$self</string>
+    <string>up</string>
+    <string>--all</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>StandardOutPath</key><string>$FS_HOME/log/autostart.log</string>
+  <key>StandardErrorPath</key><string>$FS_HOME/log/autostart.log</string>
+</dict>
+</plist>
+EOF
+}
+
+fs_cmd_autostart() {
+  local action="${1:-status}" domain
+  domain="gui/$(id -u)"
+  case "$action" in
+    on)
+      fs_autostart_render
+      "$FS_LAUNCHCTL_BIN" bootout "$domain" "$FS_AUTOSTART_PLIST" >/dev/null 2>&1 || true
+      "$FS_LAUNCHCTL_BIN" bootstrap "$domain" "$FS_AUTOSTART_PLIST" || true
+      echo "autostart on — every known site will start at login (fs up --all)"
+      ;;
+    off)
+      "$FS_LAUNCHCTL_BIN" bootout "$domain" "$FS_AUTOSTART_PLIST" >/dev/null 2>&1 || true
+      rm -f "$FS_AUTOSTART_PLIST"
+      echo "autostart off"
+      ;;
+    status)
+      if [ -f "$FS_AUTOSTART_PLIST" ]; then echo "autostart: on"; else echo "autostart: off"; fi
+      ;;
+    *) echo "Usage: fs autostart <on|off|status>" >&2; return 2 ;;
+  esac
+}
+
 fs_setup_deps() {
   local pkg
-  for pkg in dnsmasq caddy gum fzf mkcert; do
+  for pkg in $FS_BREW_DEPS; do
     if ! "$FS_BREW_BIN" list "$pkg" >/dev/null 2>&1; then
       echo "Installing $pkg..."; "$FS_BREW_BIN" install "$pkg"
     fi
