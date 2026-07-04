@@ -1,4 +1,12 @@
-# folder-server
+<p align="center">
+  <img src="docs/logo.svg" alt="folder-server" width="500">
+</p>
+
+<h1 align="center">Folder Server v1.0</h1>
+
+<p align="center">
+  <em>Serve any folder at <code>https://&lt;name&gt;.test</code> — a tiny, brew-based MAMP&nbsp;Pro replacement for Apple&nbsp;Silicon macOS.</em>
+</p>
 
 A tiny, brew-based replacement for MAMP Pro on Apple Silicon macOS. Serve any
 folder at `https://<name>.test` with a chosen PHP version, MySQL on demand,
