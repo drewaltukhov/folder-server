@@ -42,3 +42,20 @@ setup() { setup_common; . "$REPO_ROOT/lib/helpers.sh"; fs_ensure_home; }
   [[ "$output" == *"a.test"* ]]
   [[ "$output" == *"b.test"* ]]
 }
+
+@test "dot in domain is literal: x.test does not match xytest" {
+  fs_registry_set x.test /p/x 8000 8.4
+  fs_registry_set xytest /p/xy 8001 8.4
+  # get must return the correct entry for x.test
+  run fs_registry_field x.test 3
+  [ "$status" -eq 0 ]
+  [ "$output" = "8000" ]
+  # remove x.test must leave xytest intact
+  fs_registry_remove x.test
+  run fs_registry_get xytest
+  [ "$status" -eq 0 ]
+  [ "$output" = "xytest|/p/xy|8001|8.4" ]
+  # and x.test itself must be gone
+  run fs_registry_get x.test
+  [ "$status" -ne 0 ]
+}
