@@ -22,16 +22,25 @@ setup() {
   [ "$output" = "1" ]
 }
 
-@test "setup_cert invokes mkcert with wildcard when cert missing" {
+@test "setup_cert installs the local CA (mkcert -install)" {
   make_stub mkcert "$BATS_TEST_TMPDIR/mkcert.log"; export FS_MKCERT_BIN=mkcert
   fs_setup_cert
-  grep -q '\*.test' "$BATS_TEST_TMPDIR/mkcert.log"
+  grep -q -- '-install' "$BATS_TEST_TMPDIR/mkcert.log"
 }
 
-@test "setup_cert is skipped when cert already exists" {
+@test "ensure_site_cert generates a cert for the exact hostname when missing" {
   make_stub mkcert "$BATS_TEST_TMPDIR/mkcert.log"; export FS_MKCERT_BIN=mkcert
-  : >"$FS_CERT_DIR/_wildcard.test.pem"
-  : >"$FS_CERT_DIR/_wildcard.test-key.pem"
-  fs_setup_cert
+  fs_ensure_site_cert foo.test
+  # generated for the exact host, not a wildcard
+  grep -q 'foo.test' "$BATS_TEST_TMPDIR/mkcert.log"
+  run grep -q '\*.test' "$BATS_TEST_TMPDIR/mkcert.log"
+  [ "$status" -ne 0 ]
+}
+
+@test "ensure_site_cert is skipped when the per-site cert already exists" {
+  make_stub mkcert "$BATS_TEST_TMPDIR/mkcert.log"; export FS_MKCERT_BIN=mkcert
+  : >"$FS_CERT_DIR/foo.test.pem"
+  : >"$FS_CERT_DIR/foo.test-key.pem"
+  fs_ensure_site_cert foo.test
   [ ! -f "$BATS_TEST_TMPDIR/mkcert.log" ]
 }

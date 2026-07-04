@@ -192,6 +192,7 @@ fs_cmd_up() {
   port="$(fs_registry_field "$FS_DOMAIN" 3 2>/dev/null || true)"
   [ -n "$port" ] || port="$(fs_free_port)" || return 1
   fs_start_php "$FS_DOMAIN" "$phpbin" "$port" "$FS_DOCROOT" "$router" || return 1
+  fs_ensure_site_cert "$FS_DOMAIN"
   fs_write_site "$FS_DOMAIN" "$port"
   fs_registry_set "$FS_DOMAIN" "$dir" "$port" "$FS_PHP"
   fs_caddy_reload || true
@@ -378,12 +379,21 @@ fs_setup_dnsmasq() {
 }
 
 fs_setup_cert() {
-  local cert
-  local key
-  { read -r cert; read -r key; } < <(fs_cert_paths)
-  if [ -f "$cert" ] && [ -f "$key" ]; then return 0; fi
+  # Install the mkcert local CA into the system trust store so browsers trust
+  # the per-site certificates (without this, every site shows an SSL warning).
+  # The certs themselves are generated per site on `fs up` (see fs_ensure_site_cert).
+  "$FS_MKCERT_BIN" -install || true
+}
+
+# fs_ensure_site_cert <domain> — generate a cert for the exact hostname (if it
+# doesn't already exist). Browsers reject a shared *.test wildcard, so each site
+# gets its own cert.
+fs_ensure_site_cert() {
+  local domain="$1" cert key
+  { read -r cert; read -r key; } < <(fs_cert_paths "$domain")
+  [ -f "$cert" ] && [ -f "$key" ] && return 0
   mkdir -p "$FS_CERT_DIR"
-  "$FS_MKCERT_BIN" -cert-file "$cert" -key-file "$key" "*.test"
+  "$FS_MKCERT_BIN" -cert-file "$cert" -key-file "$key" "$domain" >/dev/null 2>&1
 }
 
 fs_setup_caddy_config() {

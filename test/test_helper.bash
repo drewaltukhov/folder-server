@@ -7,6 +7,9 @@ setup_common() {
   export FS_CADDY_SITES="$BATS_TEST_TMPDIR/caddy-sites"
   export FS_CERT_DIR="$FS_HOME/certs"
   mkdir -p "$FS_HOME" "$FS_BREW_OPT" "$FS_CADDY_SITES"
+  # Stub mkcert by default so `fs up` never invokes the real one (per-site cert
+  # generation). Tests that assert on mkcert re-stub it with their own log.
+  make_stub mkcert
 }
 # Put a stub executable named $1 on PATH that echoes its args to $2 log.
 make_stub() {

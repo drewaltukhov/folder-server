@@ -30,6 +30,9 @@ problems=0; fixed=0
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$1"; }
 bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; problems=$((problems+1)); }
 info() { printf '    %s\n' "$1"; }
+# Caddy caches certs in memory: a `reload` won't pick up a regenerated cert,
+# only a restart does. Needs sudo (caddy runs in the system launchd domain).
+restart_caddy() { sudo brew services restart caddy >/dev/null 2>&1 || true; }
 
 # ask <prompt> — true if the user wants the fix applied (respects MODE).
 ask() {
@@ -76,12 +79,27 @@ else
   fi
 fi
 
-# 4. wildcard cert
-{ read -r cert; read -r key; } < <(fs_cert_paths)
-if [ -f "$cert" ] && [ -f "$key" ]; then ok "wildcard *.test certificate present"
+# 4. mkcert local CA installed & trusted by the keychain (what browsers use).
+# An untrusted CA is the #1 cause of "your connection is not private". Per-site
+# certs are generated on `fs up`; here we only verify the CA.
+CAROOT="$(mkcert -CAROOT 2>/dev/null || true)"
+if [ -n "$CAROOT" ] && [ -f "$CAROOT/rootCA.pem" ] && security verify-cert -c "$CAROOT/rootCA.pem" >/dev/null 2>&1; then
+  ok "mkcert local CA installed and trusted"
 else
-  bad "wildcard certificate missing"
-  if ask "generate it with mkcert"; then fs_setup_cert && fixed=$((fixed+1)); fi
+  bad "mkcert local CA not installed/trusted — browsers will show SSL warnings"
+  if ask "run mkcert -install to trust the local CA"; then
+    "$FS_MKCERT_BIN" -install && fixed=$((fixed+1))
+  fi
+fi
+
+# 4b. old wildcard-based snippets (pre per-site certs) — browsers reject *.test.
+if ls "$FS_CADDY_SITES"/*.caddy >/dev/null 2>&1 && grep -lF "_wildcard.test" "$FS_CADDY_SITES"/*.caddy >/dev/null 2>&1; then
+  bad "some site snippets still use the old *.test wildcard cert (browsers reject it)"
+  if ask "regenerate all sites with per-site certs (fs down --all + up --all) and restart Caddy"; then
+    fs_cmd_down --all >/dev/null 2>&1 || true
+    fs_cmd_up --all >/dev/null 2>&1 || true
+    restart_caddy && fixed=$((fixed+1))
+  fi
 fi
 
 # 5. Caddy import line
