@@ -247,6 +247,33 @@ whether dnsmasq/caddy are running, `*.test` resolution, MySQL health (a
 duplicate/stale `mysqld` is the usual cause of a start failing), and stale site
 processes — and offers to fix each one.
 
+### Sites load in Chrome but not Safari (proxy / VPN)
+
+If a site opens in Chrome but Safari fails with **“Safari can't establish a secure
+connection”** (or `curl` works but Safari doesn't), the culprit is almost always a
+**system HTTP/HTTPS proxy or VPN** — e.g. Shadowrocket, Surge, Clash, Proxyman.
+Safari routes through the macOS system proxy, which tries to tunnel your `.test`
+request and can't reach a local loopback site; Chrome and `curl` bypass loopback,
+so they're unaffected. It is **not** a certificate problem.
+
+The fix is to exclude `*.test` from the proxy so those requests go direct:
+
+- **In the proxy/VPN app** — add `*.test` to its **bypass / `skip-proxy` list**
+  (the same list that already contains `localhost` and `*.local`). In Shadowrocket
+  this is the `skip-proxy` line under `[General]`; add `*.test`, then toggle the
+  proxy off/on. A routing `[Rule]` like `DOMAIN-SUFFIX,test,DIRECT` is **not**
+  enough — Safari obeys the system-proxy bypass list, not the tunnel's rules.
+- **Or in System Settings** → Network → your interface → Details → Proxies →
+  add `*.test` to *“Bypass proxy settings for these Hosts & Domains.”*
+
+Verify the fix — `.test` should appear in the bypass list, and the request should
+succeed over Safari's networking stack:
+
+```sh
+scutil --proxy | grep test                 # *.test should be listed
+nscurl https://<name>.test/                 # succeeds when the bypass is active
+```
+
 ## Uninstall
 
 ```sh
