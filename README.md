@@ -54,20 +54,29 @@ adding the DNS resolver) — run those once and you're set.
 
 ## Quick start
 
+The fastest path — one command, and your browser opens on the page:
+
 ```sh
 cd ~/Sites/my-project
+fs serve         # zero-config: default PHP, serve, open the browser
+```
+
+Or set it up explicitly:
+
+```sh
 fs init          # a short interactive setup → writes .folderserver
 fs up            # serve it
 open https://my-project.test
 ```
 
-That's it. `fs init` walks you through the PHP version, optional routing, and
-optional MySQL (with a login/password).
+`fs init` walks you through the PHP version (or a node runtime), optional
+routing, and optional MySQL (with a login/password).
 
 ## Commands
 
 | Command | What it does |
 |---|---|
+| `fs serve` | Zero-config: default PHP config, serve, and open the browser |
 | `fs init` | Interactive setup for the current folder → writes `.folderserver` |
 | `fs up` / `fs up --all` | Serve this folder (or every known site) |
 | `fs down` / `fs down --all` | Stop this folder (or every site) |

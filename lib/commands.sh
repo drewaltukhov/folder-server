@@ -408,6 +408,30 @@ fs_cmd_restart() {
   fs_cmd_up "$@"
 }
 
+# echo an installed PHP version (prefers 8.4) — for zero-config `fs serve`.
+fs_pick_php() {
+  local v
+  for v in 8.4 8.5 8.3; do
+    [ -x "$FS_BREW_OPT/php@$v/bin/php" ] && { printf '%s\n' "$v"; return 0; }
+  done
+  printf '8.4\n'
+}
+
+# fs_cmd_serve [dir] — zero-config quick serve: if there's no .folderserver,
+# write a minimal PHP one (default domain, an installed PHP, no MySQL/routing);
+# then bring it up and open it in the browser. `fs serve` → see the page.
+fs_cmd_serve() {
+  local dir="${1:-$PWD}" phpv
+  if [ ! -f "$dir/.folderserver" ]; then
+    phpv="$(fs_pick_php)"
+    fs_write_config "$dir" "$(fs_default_domain "$dir")" "$phpv" "" "" off "" "" "" php dev "" "" "" ""
+    echo "Created $dir/.folderserver (php $phpv)"
+  fi
+  fs_cmd_up "$dir" || return 1
+  _fs_load_config "$dir"
+  "$FS_OPEN_BIN" "https://$FS_DOMAIN" >/dev/null 2>&1 || true
+}
+
 : "${FS_OPEN_BIN:=open}"
 : "${FS_TAIL_BIN:=tail}"
 
