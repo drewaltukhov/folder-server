@@ -59,3 +59,31 @@ teardown() { fs_stop_php app.test >/dev/null 2>&1 || true; }
   run fs_dash_render 0
   [[ "$output" == *"[u]nbind"* ]]
 }
+
+@test "fs_cmd_unbind stops the site and deletes its config" {
+  fs_cmd_up "$PROJ" >/dev/null
+  run fs_cmd_unbind "$PROJ"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Unbound app.test"* ]]
+  run fs_is_running app.test
+  [ "$status" -ne 0 ]
+  run fs_registry_get app.test
+  [ "$status" -ne 0 ]
+  [ ! -f "$PROJ/.folderserver" ]
+}
+
+@test "fs_cmd_unbind works on a never-started folder (dir known without registry)" {
+  # never up'd: no registry entry, but the CLI knows the dir directly
+  run fs_cmd_unbind "$PROJ"
+  [ "$status" -eq 0 ]
+  [ ! -f "$PROJ/.folderserver" ]
+}
+
+@test "unbind dispatches through the real CLI entrypoint" {
+  fs_cmd_up "$PROJ" >/dev/null
+  run "$FS_BIN" unbind "$PROJ"
+  [ "$status" -eq 0 ]
+  [ ! -f "$PROJ/.folderserver" ]
+  run fs_registry_get app.test
+  [ "$status" -ne 0 ]
+}
