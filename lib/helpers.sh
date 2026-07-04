@@ -9,3 +9,36 @@ fs_ensure_home() {
   mkdir -p "$FS_HOME/run" "$FS_HOME/logs" "$FS_CERT_DIR"
   [ -f "$FS_HOME/registry" ] || : >"$FS_HOME/registry"
 }
+
+fs_config_get() {
+  local file="$1" key="$2" line k v
+  [ -f "$file" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|\#*) continue ;; esac
+    case "$line" in *=*) : ;; *) continue ;; esac
+    k="${line%%=*}"; v="${line#*=}"
+    # trim leading/trailing whitespace
+    k="$(printf '%s' "$k" | awk '{$1=$1;print}')"
+    v="$(printf '%s' "$v" | awk '{$1=$1;print}')"
+    if [ "$k" = "$key" ]; then printf '%s\n' "$v"; return 0; fi
+  done <"$file"
+}
+
+fs_default_domain() {
+  local dir="$1" base
+  base="$(basename "$dir" | tr '[:upper:]' '[:lower:]')"
+  printf '%s.test\n' "$base"
+}
+
+fs_resolve_config() {
+  local dir="$1"
+  local file="$dir/.folderserver"
+  local domain php docroot
+  domain="$(fs_config_get "$file" domain)"; [ -n "$domain" ] || domain="$(fs_default_domain "$dir")"
+  php="$(fs_config_get "$file" php)";       [ -n "$php" ] || php="8.4"
+  docroot="$(fs_config_get "$file" docroot)"
+  if [ -z "$docroot" ]; then docroot="$dir"
+  else case "$docroot" in /*) : ;; *) docroot="$dir/$docroot" ;; esac
+  fi
+  printf 'domain=%s\nphp=%s\ndocroot=%s\n' "$domain" "$php" "$docroot"
+}
