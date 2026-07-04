@@ -312,19 +312,37 @@ fs_up_php() {
   _fs_maybe_provision_db
 }
 
+# fs_detect_running_port <domain> <fallback> — read the port the dev server
+# actually bound from its startup log ("Local http://localhost:PORT/"). Dev
+# servers often override the port in their own config, so we proxy to where it
+# really listens instead of guessing. Falls back after a short wait.
+: "${FS_NODE_PORT_WAIT:=20}"   # × 0.5s
+fs_detect_running_port() {
+  local domain="$1" fallback="$2" log port i=0
+  log="$(fs_logfile "$domain")"
+  while [ "$i" -lt "$FS_NODE_PORT_WAIT" ]; do
+    port="$(grep -oE '(localhost|127\.0\.0\.1):[0-9]+' "$log" 2>/dev/null | grep -oE '[0-9]+$' | head -1)"
+    [ -n "$port" ] && { printf '%s\n' "$port"; return 0; }
+    i=$((i+1)); sleep 0.5
+  done
+  printf '%s\n' "$fallback"
+}
+
 # --- Node · dev: run the dev command, proxy Caddy to it (HMR works) ---
 fs_up_node_dev() {
   local dir="$1"
   local port
-  port="$FS_PORT"                                            # config-pinned target
+  port="$FS_PORT"                                            # config-pinned target / PORT hint
   [ -n "$port" ] || port="$(fs_registry_field "$FS_DOMAIN" 3 2>/dev/null || true)"
   [ -n "$port" ] || port="$(fs_free_port)" || return 1
   fs_start_command "$FS_DOMAIN" "$dir" "$port" "$FS_COMMAND" || return 1
   fs_ensure_site_cert "$FS_DOMAIN"
-  fs_write_devproxy_site "$FS_DOMAIN" "$port"
-  fs_registry_set "$FS_DOMAIN" "$dir" "$port" "node dev"
+  # proxy to the port the server actually bound (it may override our hint)
+  local actual; actual="$(fs_detect_running_port "$FS_DOMAIN" "$port")"
+  fs_write_devproxy_site "$FS_DOMAIN" "$actual"
+  fs_registry_set "$FS_DOMAIN" "$dir" "$actual" "node dev"
   fs_caddy_reload || true
-  echo "Serving $dir → https://$FS_DOMAIN (node dev: $FS_COMMAND, port $port)"
+  echo "Serving $dir → https://$FS_DOMAIN (node dev: $FS_COMMAND, port $actual)"
   _fs_maybe_provision_db
 }
 
