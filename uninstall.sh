@@ -15,6 +15,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 : "${FS_RESOLVER_DIR:=/etc/resolver}"
 : "${FS_MYSQL_FORMULA:=mysql}"
+: "${FS_DNSMASQ_CONF:=/opt/homebrew/etc/dnsmasq.d/test.conf}"
 : "${PREFIX:=/opt/homebrew/bin}"
 
 PURGE=0 ASSUME_YES=0
