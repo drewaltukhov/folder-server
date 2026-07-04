@@ -105,3 +105,16 @@ fs_cmd_init() {
   } >"$file"
   echo "Wrote $file"
 }
+
+: "${FS_BREW_BIN:=brew}"
+: "${FS_MYSQL_FORMULA:=mysql}"
+
+fs_cmd_db() {
+  local action="${1:-}"
+  case "$action" in
+    start) "$FS_BREW_BIN" services start "$FS_MYSQL_FORMULA" ;;
+    stop)  "$FS_BREW_BIN" services stop "$FS_MYSQL_FORMULA" ;;
+    status) "$FS_BREW_BIN" services list ;;
+    *) echo "Usage: fs db <start|stop|status>" >&2; return 2 ;;
+  esac
+}
