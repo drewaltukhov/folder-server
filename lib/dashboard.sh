@@ -6,18 +6,18 @@ fs_dash_render() {
   local i=0
   local d
   local port
-  local php
+  local runtime
   local status
   local marker
   printf '  folder-server — [s]tart/stop [r]estart [e]dit [o]pen [l]ogs [u]nbind [j/k] move [q]uit\n\n'
-  printf '    %-22s %-8s %-6s %-4s\n' DOMAIN STATUS PORT PHP
+  printf '    %-32s %-8s %-6s %-10s\n' DOMAIN STATUS PORT RUNTIME
   while IFS= read -r d; do
     [ -n "$d" ] || continue
     port="$(fs_registry_field "$d" 3 2>/dev/null)"
-    php="$(fs_registry_field "$d" 4 2>/dev/null)"
-    if fs_is_running "$d"; then status="running"; else status="stopped"; fi
+    runtime="$(fs_registry_field "$d" 4 2>/dev/null)"
+    status="$(fs_site_status "$d")"
     if [ "$i" -eq "$sel" ]; then marker=">"; else marker=" "; fi
-    printf '  %s %-22s %-8s %-6s %-4s\n' "$marker" "$d" "$status" "$port" "$php"
+    printf '  %s %-32s %-8s %-6s %-10s\n' "$marker" "$d" "$status" "$port" "$runtime"
     i=$((i+1))
   done < <(fs_registry_domains)
 }

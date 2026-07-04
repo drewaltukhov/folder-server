@@ -44,6 +44,7 @@ fs_resolve_config() {
   local dir="$1"
   local file="$dir/.folderserver"
   local domain php docroot rewrite db db_name db_user db_pass
+  local type mode command build port install
   domain="$(fs_config_get "$file" domain)"; [ -n "$domain" ] || domain="$(fs_default_domain "$dir")"
   php="$(fs_config_get "$file" php)";       [ -n "$php" ] || php="8.4"
   docroot="$(fs_config_get "$file" docroot)"
@@ -55,8 +56,15 @@ fs_resolve_config() {
   db_name="$(fs_config_get "$file" db_name)"; [ -n "$db_name" ] || db_name="$(fs_default_dbname "$dir")"
   db_user="$(fs_config_get "$file" db_user)"
   db_pass="$(fs_config_get "$file" db_pass)"
-  printf 'domain=%s\nphp=%s\ndocroot=%s\nrewrite=%s\ndb=%s\ndb_name=%s\ndb_user=%s\ndb_pass=%s\n' \
-    "$domain" "$php" "$docroot" "$rewrite" "$db" "$db_name" "$db_user" "$db_pass"
+  type="$(fs_config_get "$file" type)";     [ -n "$type" ] || type="php"
+  mode="$(fs_config_get "$file" mode)";     [ -n "$mode" ] || mode="dev"
+  command="$(fs_config_get "$file" command)"; [ -n "$command" ] || command="npm run dev"
+  build="$(fs_config_get "$file" build)";   [ -n "$build" ] || build="npm run build"
+  port="$(fs_config_get "$file" port)"
+  install="$(fs_config_get "$file" install)"
+  printf 'domain=%s\nphp=%s\ndocroot=%s\nrewrite=%s\ndb=%s\ndb_name=%s\ndb_user=%s\ndb_pass=%s\ntype=%s\nmode=%s\ncommand=%s\nbuild=%s\nport=%s\ninstall=%s\n' \
+    "$domain" "$php" "$docroot" "$rewrite" "$db" "$db_name" "$db_user" "$db_pass" \
+    "$type" "$mode" "$command" "$build" "$port" "$install"
 }
 
 fs_registry_file() { printf '%s\n' "$FS_HOME/registry"; }

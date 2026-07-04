@@ -28,6 +28,7 @@ from Homebrew packages and a handful of shell scripts. No Electron, no Intel bin
 - 🌐 **Pretty local domains** — every folder gets `https://<name>.test` (via dnsmasq + Caddy)
 - 🔒 **Trusted HTTPS** — real, browser-trusted certs per site (mkcert), no warnings
 - 🐘 **Per-folder PHP** — pick `8.3` / `8.4` / `8.5` per project
+- 🟢 **Node / npm projects too** — serve a dev server (Vite, Astro, Next, …) or a static build at `<name>.test`
 - 🗄️ **MySQL on demand** — opt in per project; the database + user are auto-provisioned
 - 🔀 **`.htaccess`-style routing** — front-controller rewrites for WordPress / Laravel / etc.
 - 🖥️ **Live dashboard** — start/stop, edit config, view logs, unbind — all from `fs dash`
@@ -93,6 +94,42 @@ db_name=my_project
 db_user=app
 db_pass=secret
 ```
+
+### Node / npm projects (`type=node`)
+
+`fs init` detects a `package.json` and offers a **node** runtime (you can still
+pick `php`). Two modes:
+
+**Dev server** (`mode=dev`) — runs your dev command and proxies `<name>.test` to
+it, with live reload:
+
+```ini
+type=node
+command=npm run dev      # detected (supports pnpm / yarn / bun)
+port=5173                # the port your dev server listens on
+```
+
+- The port is the one thing folder-server can't always guess — Vite, Astro, and
+  Next each differ, and projects override it. `fs init` pre-fills a sensible
+  default; if your dev server uses a custom port, set `port=` to match. Leave it
+  blank to auto-assign a free port and inject `PORT` for tools that respect it.
+- folder-server rewrites the upstream `Host` to loopback so dev servers don't
+  reject the proxied hostname (`Blocked request … is not allowed`).
+- `install=on` (default when `fs init` detects a node project) auto-runs the
+  package manager's install step on `fs up` when `node_modules` is missing.
+
+**Static build** (`mode=build`) — runs the build once; Caddy then serves the
+output folder directly (no running process):
+
+```ini
+type=node
+mode=build
+build=npm run build
+docroot=dist             # the build output folder to serve
+rewrite=index.html       # optional — SPA client-side routing fallback
+```
+
+`fs restart` rebuilds. MySQL (`db=on`) works with node projects too.
 
 ### Front-controller routing (`rewrite`)
 
