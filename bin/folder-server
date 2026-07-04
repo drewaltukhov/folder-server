@@ -8,8 +8,11 @@ while [ -L "$src" ]; do
   case "$src" in /*) ;; *) src="$dir/$src" ;; esac
 done
 LIB="$(cd -P "$(dirname "$src")/../lib" && pwd)"
+# Absolute path to this resolved entrypoint — used by `fs autostart` for the
+# launchd ProgramArguments (must be a stable, absolute path).
+FS_SELF="$(cd -P "$(dirname "$src")" && pwd)/$(basename "$src")"; export FS_SELF
 # shellcheck source=/dev/null
-for f in helpers caddy process commands dashboard; do
+for f in helpers deps caddy process commands dashboard; do
   [ -f "$LIB/$f.sh" ] && . "$LIB/$f.sh"
 done
 
@@ -30,6 +33,7 @@ Usage: fs <command> [args]
   logs              Tail the current folder's PHP log
   db start|stop|status   Control the shared MySQL service
   dash              Live TUI dashboard
+  autostart on|off|status  Start all sites at login (launchd)
   help              Show this help
 EOF
 }
@@ -40,7 +44,7 @@ main() {
   shift || true
   case "$cmd" in
     help|-h|--help) fs_usage ;;
-    version|-v|--version) echo "folder-server 0.1.0" ;;
+    version|-v|--version) echo "folder-server 1.0.0" ;;
     setup)   fs_cmd_setup "$@" ;;
     serve)   fs_cmd_serve "$@" ;;
     init)    fs_cmd_init "$@" ;;
@@ -54,6 +58,7 @@ main() {
     logs)    fs_cmd_logs "$@" ;;
     db)      fs_cmd_db "$@" ;;
     dash)    fs_cmd_dash "$@" ;;
+    autostart) fs_cmd_autostart "$@" ;;
     *) echo "fs: unknown command: $cmd" >&2; fs_usage >&2; return 127 ;;
   esac
 }

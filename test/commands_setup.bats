@@ -1,7 +1,7 @@
 load test_helper
 setup() {
   setup_common
-  for l in helpers caddy commands; do . "$REPO_ROOT/lib/$l.sh"; done
+  for l in helpers deps caddy commands; do . "$REPO_ROOT/lib/$l.sh"; done
   export FS_DNSMASQ_CONF="$BATS_TEST_TMPDIR/dnsmasq-test.conf"
   export FS_CADDY_CONFIG="$BATS_TEST_TMPDIR/Caddyfile"
   export FS_MKCERT_BIN=mkcert

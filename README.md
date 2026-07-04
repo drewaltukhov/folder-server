@@ -52,6 +52,20 @@ fs setup         # installs deps (dnsmasq, caddy, gum, fzf), sets up DNS/cert/Ca
 `fs setup` prints a few one-time `sudo` lines to finish (starting dnsmasq/caddy and
 adding the DNS resolver) — run those once and you're set.
 
+`install.sh` also drops in **shell completion** for `zsh` and `bash` (subcommands,
+`--all`, and `db`/`autostart` actions), and `uninstall.sh` removes it again.
+
+### Start sites at login (optional)
+
+Caddy and dnsmasq are brew services, so they survive a reboot — but your
+per-folder site servers don't. Opt into restoring them automatically:
+
+```sh
+fs autostart on      # a login agent runs `fs up --all` at every login
+fs autostart status  # on / off
+fs autostart off     # remove the agent
+```
+
 ## Quick start
 
 The fastest path — one command, and your browser opens on the page:
@@ -87,6 +101,7 @@ routing, and optional MySQL (with a login/password).
 | `fs open` | Open this folder's URL in the browser |
 | `fs logs` | Tail this folder's PHP log |
 | `fs db start\|stop\|status` | Control the shared MySQL service |
+| `fs autostart on\|off\|status` | Start every known site at login (launchd agent) |
 | `fs unbind` / `fs unbind --all` | Stop, delete `.folderserver`, and forget the site (or every site) |
 
 ## Configuration — `.folderserver`
