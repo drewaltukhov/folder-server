@@ -19,6 +19,10 @@ _fs_load_config() {
 fs_cmd_up() {
   local dir="${1:-$PWD}"
   _fs_load_config "$dir"
+  if [[ ! "$FS_DOMAIN" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "fs: invalid domain '$FS_DOMAIN' (allowed: letters, digits, . _ -)" >&2
+    return 1
+  fi
   local phpbin
   local port
   phpbin="$(fs_php_binary "$FS_PHP")" || return 1
@@ -53,7 +57,7 @@ fs_cmd_list() {
   local d port php status
   while IFS= read -r d; do
     [ -n "$d" ] || continue
-    port="$(fs_registry_field "$d" 3)"; php="$(fs_registry_field "$d" 4)"
+    port="$(fs_registry_field "$d" 3 2>/dev/null)"; php="$(fs_registry_field "$d" 4 2>/dev/null)"
     if fs_is_running "$d"; then status="running"; else status="stopped"; fi
     printf '%-24s %-8s %-6s %-4s %s\n' "$d" "$status" "$port" "$php" "https://$d"
   done < <(fs_registry_domains)

@@ -45,3 +45,15 @@ teardown() { fs_cmd_down "$PROJ" >/dev/null 2>&1 || true; }
   local p2; p2="$(fs_registry_field site1.test 3)"
   [ "$p1" = "$p2" ]
 }
+
+@test "up rejects a domain containing an illegal character" {
+  local badproj="$BATS_TEST_TMPDIR/badsite"
+  mkdir -p "$badproj"
+  printf 'domain=bad|name\nphp=8.4\n' >"$badproj/.folderserver"
+  run fs_cmd_up "$badproj"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"invalid domain"* ]]
+  run fs_is_running "bad|name"
+  [ "$status" -ne 0 ]
+  [ ! -f "$FS_CADDY_SITES/bad|name.caddy" ]
+}
