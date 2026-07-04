@@ -7,8 +7,12 @@ fs_caddy_template() {
   cd "$(dirname "${BASH_SOURCE[0]}")/../templates" && pwd
 }
 
+# Per-site cert paths. Browsers reject a `*.test` wildcard (it spans a whole
+# TLD → NET::ERR_CERT_COMMON_NAME_INVALID), so every site gets a cert with its
+# exact hostname instead.
 fs_cert_paths() {
-  printf '%s\n%s\n' "$FS_CERT_DIR/_wildcard.test.pem" "$FS_CERT_DIR/_wildcard.test-key.pem"
+  local domain="$1"
+  printf '%s\n%s\n' "$FS_CERT_DIR/$domain.pem" "$FS_CERT_DIR/$domain-key.pem"
 }
 
 fs_render_site() {
@@ -18,7 +22,7 @@ fs_render_site() {
   local cert
   local key
   tmpl="$(fs_caddy_template)/site.caddy.tmpl"
-  { read -r cert; read -r key; } < <(fs_cert_paths)
+  { read -r cert; read -r key; } < <(fs_cert_paths "$domain")
   sed -e "s|{{DOMAIN}}|$domain|g" \
       -e "s|{{PORT}}|$port|g" \
       -e "s|{{CERT}}|$cert|g" \
