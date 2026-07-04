@@ -18,6 +18,7 @@ fs_usage() {
 Usage: fs <command> [args]
 
   setup             One-time machine setup (dnsmasq, caddy, cert, deps)
+  serve             Zero-config: default PHP config, serve, and open in the browser
   init              Create a .folderserver config in the current folder
   up [--all]        Start serving the current folder (or every known site)
   down [--all]      Stop serving the current folder (or every running site)
@@ -41,6 +42,7 @@ main() {
     help|-h|--help) fs_usage ;;
     version|-v|--version) echo "folder-server 0.1.0" ;;
     setup)   fs_cmd_setup "$@" ;;
+    serve)   fs_cmd_serve "$@" ;;
     init)    fs_cmd_init "$@" ;;
     up)      fs_cmd_up "$@" ;;
     down)    fs_cmd_down "$@" ;;
