@@ -22,9 +22,9 @@ fs_start_php() {
   log="$(fs_logfile "$domain")"
   pf="$(fs_pidfile "$domain")"
   if [ -n "$router" ]; then
-    nohup "$phpbin" -S "127.0.0.1:$port" -t "$docroot" "$router" >"$log" 2>&1 &
+    nohup "$phpbin" -S "127.0.0.1:$port" -t "$docroot" "$router" </dev/null >"$log" 2>&1 &
   else
-    nohup "$phpbin" -S "127.0.0.1:$port" -t "$docroot" >"$log" 2>&1 &
+    nohup "$phpbin" -S "127.0.0.1:$port" -t "$docroot" </dev/null >"$log" 2>&1 &
   fi
   echo "$!" >"$pf"
 }
@@ -41,7 +41,12 @@ fs_start_command() {
   local log pf
   log="$(fs_logfile "$domain")"
   pf="$(fs_pidfile "$domain")"
-  nohup bash -c "cd \"\$1\" && export PORT=\"\$2\" && exec \$3" _ "$workdir" "$port" "$command" >"$log" 2>&1 &
+  # stdin is redirected from /dev/null so the dev server sees a non-TTY stdin.
+  # Without this it inherits the `fs up` terminal, and Vite-based servers
+  # (React Router, Astro, Next, …) attach an interactive keypress listener to
+  # it; once `fs up` returns to the prompt, reading that orphaned TTY throws
+  # `read EIO` and the dev server crashes seconds after starting → Caddy 502.
+  nohup bash -c "cd \"\$1\" && export PORT=\"\$2\" && exec \$3" _ "$workdir" "$port" "$command" </dev/null >"$log" 2>&1 &
   echo "$!" >"$pf"
 }
 
