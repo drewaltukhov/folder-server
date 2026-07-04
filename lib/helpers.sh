@@ -94,3 +94,31 @@ fs_registry_domains() {
   [ -f "$f" ] || return 0
   cut -d'|' -f1 "$f"
 }
+
+fs_port_in_use() {
+  local port="$1"
+  # In registry?
+  if grep -q "|${port}|" "$(fs_registry_file)" 2>/dev/null; then return 0; fi
+  # Bound on localhost?
+  if command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$port" >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
+fs_free_port() {
+  local p
+  for p in $(seq 8000 8999); do
+    if ! fs_port_in_use "$p"; then printf '%s\n' "$p"; return 0; fi
+  done
+  echo "fs: no free port in 8000-8999" >&2
+  return 1
+}
+
+fs_php_binary() {
+  local ver="$1"
+  local path="$FS_BREW_OPT/php@$ver/bin/php"
+  if [ -x "$path" ]; then printf '%s\n' "$path"; return 0; fi
+  echo "fs: php@$ver not installed (run: brew install php@$ver)" >&2
+  return 1
+}
