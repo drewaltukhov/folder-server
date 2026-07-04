@@ -84,6 +84,10 @@ fs_db_provision() {
   case "$pass" in
     *\\*|*\`*) echo "fs: db password may not contain a backslash or backtick" >&2; return 1 ;;
   esac
+  if ! command -v "$FS_MYSQL_BIN" >/dev/null 2>&1; then
+    echo "fs: MySQL not installed — run: brew install $FS_MYSQL_FORMULA" >&2
+    return 1
+  fi
   local pesc
   pesc="$(printf '%s' "$pass" | sed "s/'/''/g")"
   "$FS_BREW_BIN" services start "$FS_MYSQL_FORMULA" >/dev/null 2>&1 || true
@@ -387,6 +391,9 @@ Almost done. Run these once (they need sudo / your password):
   echo "nameserver 127.0.0.1" | sudo tee $FS_RESOLVER_DIR/test
   sudo brew services start dnsmasq
   sudo brew services start caddy
+
+PHP: install any versions you need, e.g.  brew install php   (or php@8.3 / php@8.4)
+MySQL (only if a project uses db=on):     brew install $FS_MYSQL_FORMULA
 
 Then: cd into a project, run 'fs init' and 'fs up'.
 EOF

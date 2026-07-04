@@ -19,8 +19,12 @@ and a live terminal dashboard.
 ## Install
 
     ./install.sh          # symlinks `folder-server` and `fs` into /opt/homebrew/bin
-    fs setup              # installs deps, configures dnsmasq/caddy/cert
+    fs setup              # installs deps (dnsmasq, caddy, gum, fzf), configures dnsmasq/caddy/cert
     # then run the printed sudo lines once
+
+You also need a PHP version to serve with (`brew install php`, or `php@8.3` /
+`php@8.4`). MySQL is only required if a project uses `db=on` — `brew install mysql`.
+`fs setup` reminds you of both.
 
 ## Usage
 
