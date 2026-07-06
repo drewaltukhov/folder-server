@@ -60,16 +60,39 @@ fs_dash_action() {
   esac
 }
 
-# fs_dash_logs <domain> — open the site's PHP log in a pager (live-follow via
-# `less +F`; press Ctrl-C to stop following, q to return to the dashboard).
+# fs_dash_logs <domain> — live-tail the site's PHP log with a one-key exit.
+# The log streams below a sticky header; press `q` or `Esc` to return to the
+# dashboard. We roll our own follow loop rather than `less +F` because in
+# `less` the first keypress only stops following (you land at `(END)` and must
+# press `q` again) — a two-step, hint-less exit that reads like a stuck editor.
 fs_dash_logs() {
-  local domain="$1" log
+  local domain="$1" log tail_pid key
   log="$(fs_logfile "$domain")"
-  if [ -f "$log" ]; then
-    "${FS_PAGER:-less}" +F "$log"
-  else
+  if [ ! -f "$log" ]; then
     printf '(no log yet for %s — start the site first)\n' "$domain"
+    printf 'Press any key to return to the dashboard…'
+    IFS= read -rsn1 key || true
+    return
   fi
+
+  printf '\033[1mLogs for %s\033[0m — press \033[1mq\033[0m or \033[1mEsc\033[0m to return to the dashboard\n' "$domain"
+  printf '%s\n' '────────────────────────────────────────────────────────────'
+
+  # Stream the log to the terminal in the background; read keys in the
+  # foreground so a single q/Esc exits immediately.
+  tail -n 200 -f "$log" &
+  tail_pid=$!
+
+  while kill -0 "$tail_pid" 2>/dev/null; do
+    key=""
+    IFS= read -rsn1 -t 1 key || true
+    case "$key" in
+      q|Q|$'\e') break ;;
+    esac
+  done
+
+  kill "$tail_pid" 2>/dev/null || true
+  wait "$tail_pid" 2>/dev/null || true
 }
 
 fs_cmd_dash() {
