@@ -11,6 +11,16 @@ setup_common() {
   # generation). Tests that assert on mkcert re-stub it with their own log.
   make_stub mkcert
 }
+# Install a fake php@VER binary under FS_BREW_OPT so fs_have_php / fs_pick_php
+# see PHP as installed. Defaults to 8.4. The binary sleeps so `fs up` can treat
+# it as a long-running server.
+install_php_stub() {
+  local ver="${1:-8.4}"
+  mkdir -p "$FS_BREW_OPT/php@$ver/bin"
+  printf '#!/usr/bin/env bash\nexec sleep 30\n' >"$FS_BREW_OPT/php@$ver/bin/php"
+  chmod +x "$FS_BREW_OPT/php@$ver/bin/php"
+}
+
 # Put a stub executable named $1 on PATH that echoes its args to $2 log.
 make_stub() {
   local name="$1" logfile="${2:-$BATS_TEST_TMPDIR/${1}.log}"

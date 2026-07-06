@@ -53,6 +53,9 @@ fs_write_config() {
         [ -n "$port" ] && printf 'port=%s\n' "$port"
       fi
       fs_db_enabled "$install" && printf 'install=on\n'
+    elif [ "$type" = static ]; then
+      printf 'type=static\n'
+      [ -n "$docroot" ] && printf 'docroot=%s\n' "$docroot"
     else
       printf 'php=%s\n' "$php"
       [ -n "$docroot" ] && printf 'docroot=%s\n' "$docroot"
@@ -304,6 +307,7 @@ fs_cmd_up() {
         build) fs_up_node_build "$dir" ;;
         *)     fs_up_node_dev "$dir" ;;
       esac ;;
+    static) fs_up_static "$dir" ;;
     *) fs_up_php "$dir" ;;
   esac
 }
@@ -399,6 +403,19 @@ fs_up_node_build() {
   _fs_publish_lan_if_on "$FS_DOMAIN"
   fs_caddy_reload || true
   echo "Serving $dir → https://$FS_DOMAIN (static from $FS_DOCROOT)"
+  fs_lan_report
+  _fs_maybe_provision_db
+}
+
+# --- Static: Caddy file_server on a folder, no PHP/node/process ---
+fs_up_static() {
+  local dir="$1"
+  fs_ensure_site_cert "$FS_DOMAIN"
+  fs_write_static_site "$FS_DOMAIN" "$FS_DOCROOT"
+  fs_registry_set "$FS_DOMAIN" "$dir" "-" "static"
+  _fs_publish_lan_if_on "$FS_DOMAIN"
+  fs_caddy_reload || true
+  echo "Serving $dir → https://$FS_DOMAIN (static from ${FS_DOCROOT:-$dir})"
   fs_lan_report
   _fs_maybe_provision_db
 }
@@ -561,7 +578,7 @@ _fs_publish_lan_if_on() {
   local domain="$1" backend
   FS_LAN_URL=""
   fs_db_enabled "$FS_LAN" || return 0
-  if [ "$FS_TYPE" = node ] && [ "$FS_MODE" = build ]; then
+  if [ "$FS_TYPE" = static ] || { [ "$FS_TYPE" = node ] && [ "$FS_MODE" = build ]; }; then
     fs_lan_expose "$domain" static "$FS_DOCROOT" "$FS_REWRITE"
   else
     backend="$(fs_registry_field "$domain" 3 2>/dev/null || true)"
@@ -637,15 +654,31 @@ fs_pick_php() {
   printf '8.4\n'
 }
 
+# true only if some php@8.x is actually installed. Distinct from fs_pick_php,
+# which always names a version (falling back to 8.4). Used to decide whether the
+# zero-config default is PHP or a plain static server.
+fs_have_php() {
+  local v
+  for v in 8.4 8.5 8.3; do
+    [ -x "$FS_BREW_OPT/php@$v/bin/php" ] && return 0
+  done
+  return 1
+}
+
 # fs_cmd_serve [dir] — zero-config quick serve: if there's no .folderserver,
-# write a minimal PHP one (default domain, an installed PHP, no MySQL/routing);
-# then bring it up and open it in the browser. `fs serve` → see the page.
+# write a minimal one (default domain, no MySQL/routing) and bring it up. Uses
+# PHP when installed, otherwise a plain static server. `fs serve` → see the page.
 fs_cmd_serve() {
   local dir="${1:-$PWD}" phpv
   if [ ! -f "$dir/.folderserver" ]; then
-    phpv="$(fs_pick_php)"
-    fs_write_config "$dir" "$(fs_default_domain "$dir")" "$phpv" "" "" off "" "" "" php dev "" "" "" ""
-    echo "Created $dir/.folderserver (php $phpv)"
+    if fs_have_php; then
+      phpv="$(fs_pick_php)"
+      fs_write_config "$dir" "$(fs_default_domain "$dir")" "$phpv" "" "" off "" "" "" php dev "" "" "" ""
+      echo "Created $dir/.folderserver (php $phpv)"
+    else
+      fs_write_config "$dir" "$(fs_default_domain "$dir")" "" "" "" off "" "" "" static dev "" "" "" ""
+      echo "Created $dir/.folderserver (static)"
+    fi
   fi
   fs_cmd_up "$dir" || return 1
   _fs_load_config "$dir"
@@ -713,8 +746,9 @@ _fs_prompt_config() {
 
   NC_DOMAIN="$("$FS_GUM_BIN" input --value "$d_domain" --header "Domain")"
 
-  # Runtime — only offered when node is relevant (package.json present, or the
-  # project is already node). Detected runtime is the default, but overridable.
+  # Runtime — node is offered only when relevant (package.json present or the
+  # project is already node). For everything else the PHP-version prompt below
+  # doubles as the runtime picker: choosing "static" means serve files, no PHP.
   NC_TYPE=php
   if fs_detect_node "$dir" || [ "$cur_type" = node ]; then
     NC_TYPE="$("$FS_GUM_BIN" choose node php --selected "${cur_type:-node}" --header "Runtime")"
@@ -739,11 +773,19 @@ _fs_prompt_config() {
     NC_INSTALL=off
     if "$FS_GUM_BIN" confirm "$inst_def" "Auto-install dependencies on 'fs up' when missing?"; then NC_INSTALL=on; fi
   else
-    NC_PHP="$("$FS_GUM_BIN" choose 8.4 8.5 8.3 --selected "$d_php" --header "PHP version")"
-    NC_DOCROOT="$("$FS_GUM_BIN" input --value "$d_docroot" --placeholder "public (blank = folder root)" --header "Docroot")"
-    local rw_def=--default=false; [ -n "$d_rewrite" ] && rw_def=--default
-    if "$FS_GUM_BIN" confirm "$rw_def" "Front-controller routing (.htaccess-style rewrite)?"; then
-      NC_REWRITE="$("$FS_GUM_BIN" input --value "${d_rewrite:-index.php}" --header "Router script")"
+    # PHP version — or "static" (no PHP, just serve the folder). Preselect
+    # static when the project already is static.
+    local php_sel="$d_php"; [ "$cur_type" = static ] && php_sel=static
+    NC_PHP="$("$FS_GUM_BIN" choose 8.4 8.5 8.3 static --selected "$php_sel" --header "PHP version (or 'static' for no PHP)")"
+    if [ "$NC_PHP" = static ]; then
+      NC_TYPE=static; NC_PHP=""
+      NC_DOCROOT="$("$FS_GUM_BIN" input --value "$d_docroot" --placeholder "public/dist (blank = folder root)" --header "Folder to serve")"
+    else
+      NC_DOCROOT="$("$FS_GUM_BIN" input --value "$d_docroot" --placeholder "public (blank = folder root)" --header "Docroot")"
+      local rw_def=--default=false; [ -n "$d_rewrite" ] && rw_def=--default
+      if "$FS_GUM_BIN" confirm "$rw_def" "Front-controller routing (.htaccess-style rewrite)?"; then
+        NC_REWRITE="$("$FS_GUM_BIN" input --value "${d_rewrite:-index.php}" --header "Router script")"
+      fi
     fi
   fi
 
@@ -778,8 +820,11 @@ fs_cmd_init() {
     echo "fs: $file exists (use --force to overwrite)" >&2
     return 1
   fi
+  # node folder → node; else a PHP-free machine → static; else php.
   local detected=php
-  fs_detect_node "$dir" && detected=node
+  if fs_detect_node "$dir"; then detected=node
+  elif ! fs_have_php; then detected=static
+  fi
 
   if _fs_have_gum_tty; then
     _fs_prompt_config "$dir" "$detected" "$(fs_default_domain "$dir")" 8.4 "" "" \
@@ -796,6 +841,9 @@ fs_cmd_init() {
       NC_BUILD="$(fs_detect_command "$dir" build)"
       NC_PORT="$(fs_detect_port "$dir")"
       NC_INSTALL=on
+    elif [ "$detected" = static ]; then
+      # non-interactive with no PHP installed → plain static server
+      NC_TYPE=static
     fi
   fi
   fs_write_config "$dir" "$NC_DOMAIN" "$NC_PHP" "$NC_DOCROOT" "$NC_REWRITE" \

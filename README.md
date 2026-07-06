@@ -28,6 +28,7 @@ from Homebrew packages and a handful of shell scripts. No Electron, no Intel bin
 - 🌐 **Pretty local domains** — every folder gets `https://<name>.test` (via dnsmasq + Caddy)
 - 🔒 **Trusted HTTPS** — real, browser-trusted certs per site (mkcert), no warnings
 - 🐘 **Per-folder PHP** — pick `8.3` / `8.4` / `8.5` per project
+- 📄 **Static sites, no PHP needed** — serve a plain folder of HTML/CSS/JS with `type=static` (the default when no PHP is installed)
 - 🟢 **Node / npm projects too** — serve a dev server (Vite, Astro, Next, …) or a static build at `<name>.test`
 - 🗄️ **MySQL on demand** — opt in per project; the database + user are auto-provisioned
 - 📱 **Test on your phone** — opt in with `lan=on` to also serve the site over the LAN at `https://<mac>.local:<port>`
@@ -38,7 +39,7 @@ from Homebrew packages and a handful of shell scripts. No Electron, no Intel bin
 ## Requirements
 
 - **macOS on Apple Silicon** with [Homebrew](https://brew.sh)
-- At least one PHP: `brew install php` (or `php@8.3` / `php@8.4` / `php@8.5`)
+- PHP is **optional** — only needed for PHP sites: `brew install php` (or `php@8.3` / `php@8.4` / `php@8.5`). Static and node projects run without it.
 - MySQL only if a project uses `db=on`: `brew install mysql`
 
 ## Install
@@ -73,7 +74,7 @@ The fastest path — one command, and your browser opens on the page:
 
 ```sh
 cd ~/Sites/my-project
-fs serve         # zero-config: default PHP, serve, open the browser
+fs serve         # zero-config: PHP if installed, else static — serve, open the browser
 ```
 
 Or set it up explicitly:
@@ -84,14 +85,14 @@ fs up            # serve it
 open https://my-project.test
 ```
 
-`fs init` walks you through the PHP version (or a node runtime), optional
-routing, and optional MySQL (with a login/password).
+`fs init` walks you through the PHP version — or `static` (no PHP) or a node
+runtime — plus optional routing and optional MySQL (with a login/password).
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `fs serve` | Zero-config: default PHP config, serve, and open the browser |
+| `fs serve` | Zero-config: PHP config if PHP is installed, else static — serve and open the browser |
 | `fs init` | Interactive setup for the current folder → writes `.folderserver` |
 | `fs up` / `fs up --all` | Serve this folder (or every known site) |
 | `fs down` / `fs down --all` | Stop this folder (or every site) |
@@ -156,6 +157,26 @@ rewrite=index.html       # optional — SPA client-side routing fallback
 ```
 
 `fs restart` rebuilds. MySQL (`db=on`) works with node projects too.
+
+### Static sites (`type=static`)
+
+For a plain folder of HTML/CSS/JS — no PHP, no npm, no build step — use the
+**static** type. Caddy serves the folder directly; there's no backend process:
+
+```ini
+domain=my-site.test
+type=static
+docroot=public           # optional — defaults to the folder root
+```
+
+- **No PHP required.** This is the one type that runs on a machine with no PHP
+  installed at all. In fact, when no PHP is present, `type=static` becomes the
+  default: `fs serve` and `fs init` pick it automatically, and the runtime
+  prompt preselects it.
+- Already have PHP installed but want a static site anyway? Pick **`static`**
+  from the PHP-version list in `fs init` / `fs edit` (it sits alongside
+  `8.4` / `8.5` / `8.3`).
+- `lan=on` works — the site is served statically over the LAN too.
 
 ### Front-controller routing (`rewrite`)
 

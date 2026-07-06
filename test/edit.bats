@@ -38,6 +38,7 @@ setup() {
 }
 
 @test "init non-interactive fallback still writes a minimal config (no db)" {
+  install_php_stub 8.4
   mkdir -p "$PROJ/new"
   run fs_cmd_init "$PROJ/new"
   [ "$status" -eq 0 ]
