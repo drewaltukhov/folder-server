@@ -68,6 +68,19 @@ fs_dash_action() {
 fs_dash_logs() {
   local domain="$1" log tail_pid key
   log="$(fs_logfile "$domain")"
+
+  # No TTY on stdin (piped, or under tests) — there's no keyboard to drive the
+  # live viewer, so just print the recent log and return instead of blocking on
+  # a follow loop that could never be exited.
+  if [ ! -t 0 ]; then
+    if [ -f "$log" ]; then
+      tail -n 200 "$log"
+    else
+      printf '(no log yet for %s — start the site first)\n' "$domain"
+    fi
+    return
+  fi
+
   if [ ! -f "$log" ]; then
     printf '(no log yet for %s — start the site first)\n' "$domain"
     printf 'Press any key to return to the dashboard…'
