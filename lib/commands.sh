@@ -829,6 +829,17 @@ _fs_runtime_label() {
   esac
 }
 
+# _fs_register_from_config <dir> — add a site to the registry from its existing
+# .folderserver, without rewriting config or starting it. Directory is stored
+# absolute; port is left blank (assigned on the first `fs up`). Shared by init
+# and scan so a registered site looks the same however it got there.
+_fs_register_from_config() {
+  local dir; dir="$(cd "$1" 2>/dev/null && pwd)" || return 1
+  _fs_load_config "$dir"
+  [ -n "$FS_DOMAIN" ] || return 1
+  fs_registry_set "$FS_DOMAIN" "$dir" "" "$(_fs_runtime_label "$FS_TYPE" "$FS_MODE" "$FS_PHP")"
+}
+
 fs_cmd_init() {
   local dir="$PWD" force=0 a
   for a in "$@"; do
@@ -876,11 +887,48 @@ fs_cmd_init() {
     "$NC_DB" "$NC_DB_NAME" "$NC_DB_USER" "$NC_DB_PASS" \
     "$NC_TYPE" "$NC_MODE" "$NC_COMMAND" "$NC_BUILD" "$NC_PORT" "$NC_INSTALL" "$NC_LAN"
   # Register the site immediately so it shows in `fs list` and is picked up by
-  # `fs up --all` even before its first `fs up`. Port is a runtime fact, so it
-  # is left blank here and assigned on the first up.
+  # `fs up --all` even before its first `fs up`. On a --force re-init that changed
+  # the domain, drop the stale row first.
   [ -n "$old_domain" ] && [ "$old_domain" != "$NC_DOMAIN" ] && fs_registry_remove "$old_domain"
-  fs_registry_set "$NC_DOMAIN" "$dir" "" "$(_fs_runtime_label "$NC_TYPE" "$NC_MODE" "$NC_PHP")"
+  _fs_register_from_config "$dir"
   echo "Wrote $file"
+}
+
+# fs_cmd_scan [dir] — walk dir (default $PWD) for .folderserver files and add each
+# discovered site to the registry, without rewriting config or starting anything.
+# Handy after cloning a repo or reinstalling: recover the site list in one shot.
+fs_cmd_scan() {
+  local root="${1:-$PWD}"
+  if [ ! -d "$root" ]; then echo "fs: not a directory: $root" >&2; return 1; fi
+  local f dir domain existing added=0 unchanged=0 conflicts=0 found=0
+  while IFS= read -r f; do
+    found=$((found + 1))
+    dir="$(cd "$(dirname "$f")" 2>/dev/null && pwd)" || continue
+    domain="$(fs_config_get "$f" domain 2>/dev/null || true)"
+    if [ -z "$domain" ] || [[ ! "$domain" =~ ^[A-Za-z0-9._-]+$ ]]; then
+      echo "fs: skipping $f — missing or invalid domain" >&2
+      continue
+    fi
+    existing="$(fs_registry_field "$domain" 2 2>/dev/null || true)"
+    if [ -n "$existing" ]; then
+      if [ "$existing" = "$dir" ]; then
+        unchanged=$((unchanged + 1)); echo "unchanged  $domain"
+      else
+        conflicts=$((conflicts + 1))
+        echo "fs: conflict — '$domain' already registered at $existing (found $dir); skipping" >&2
+      fi
+      continue
+    fi
+    if _fs_register_from_config "$dir"; then
+      added=$((added + 1)); echo "added      $domain → $dir"
+    fi
+  done < <(find "$root" -type d \( -name node_modules -o -name .git -o -name vendor \) -prune \
+             -o -type f -name .folderserver -print)
+  if [ "$found" -eq 0 ]; then
+    echo "fs: no .folderserver files under $root"
+    return 0
+  fi
+  echo "Scanned: $added added, $unchanged unchanged, $conflicts conflict(s)."
 }
 
 # fs_cmd_edit [dir] — interactive editor for an existing .folderserver: change

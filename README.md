@@ -106,6 +106,7 @@ runtime — plus optional routing and optional MySQL (with a login/password).
 | `fs autostart on\|off\|status` | Start every known site at login (launchd agent) |
 | `fs lan on\|off\|status\|ca` | Expose this site to the local network (phones/tablets); `ca` prints the one-time trust guide |
 | `fs unbind` / `fs unbind --all` | Stop, delete `.folderserver`, and forget the site (or every site) |
+| `fs scan [dir]` | Find `.folderserver` files under `dir` (default: current folder) and add them to the site list — handy after cloning a repo or reinstalling |
 
 ## Configuration — `.folderserver`
 
