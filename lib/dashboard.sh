@@ -1,25 +1,73 @@
 # shellcheck shell=bash
 # dashboard.sh — live TUI dashboard. Safe to source. No `set -e` here.
 
+# fs_dash_colors — populate the palette used by the renderer. Every var is set
+# to an empty string (a no-op in printf) when color is unwanted: NO_COLOR is
+# set, stdout isn't a TTY (piped / under tests), or the terminal is dumb. The
+# renderer stays identical either way — it just emits no escape sequences, so
+# non-interactive output is byte-for-byte the plain layout.
+fs_dash_colors() {
+  C_RESET='' C_BOLD='' C_DIM='' C_GREEN='' C_AMBER='' C_REV=''
+  [ -n "${NO_COLOR:-}" ] && return 0
+  [ -t 1 ] || return 0
+  case "${TERM:-}" in ''|dumb) return 0 ;; esac
+  C_RESET=$'\033[0m'
+  C_BOLD=$'\033[1m'
+  C_DIM=$'\033[2m'
+  C_GREEN=$'\033[32m'
+  C_AMBER=$'\033[33m'
+  C_REV=$'\033[7m'
+}
+
 fs_dash_render() {
   local sel="${1:-0}"
   local i=0
-  local d
-  local port
-  local runtime
-  local status
-  local marker
-  printf '  folder-server — [s]tart/stop [r]estart [e]dit [o]pen [l]ogs [u]nbind [j/k] move [q]uit\n\n'
-  printf '    %-32s %-8s %-6s %-10s\n' DOMAIN STATUS PORT RUNTIME
+  local d port runtime status
+  local dot glyph word rowplain pad cols
+  local running=0 served=0 stopped=0 total=0
+  local rst="${C_RESET:-}"
+
+  cols="$(tput cols 2>/dev/null)" || cols=""
+  [ -n "$cols" ] || cols=80
+
+  # Topbar: bold title, dim keybind hints.
+  printf '  %sfolder-server%s  %s[s]tart/stop [r]estart [e]dit [o]pen [l]ogs [u]nbind [j/k] move [q]uit%s\n\n' \
+    "${C_BOLD:-}" "$rst" "${C_DIM:-}" "$rst"
+  # Column headers, bold. STATUS is 9 wide: dot(1) + space(1) + word(7).
+  printf '    %s%-32s %-9s %-6s %-10s%s\n' "${C_BOLD:-}" DOMAIN STATUS PORT RUNTIME "$rst"
+
   while IFS= read -r d; do
     [ -n "$d" ] || continue
     port="$(fs_registry_field "$d" 3 2>/dev/null)"
     runtime="$(fs_registry_field "$d" 4 2>/dev/null)"
     status="$(fs_site_status "$d")"
-    if [ "$i" -eq "$sel" ]; then marker=">"; else marker=" "; fi
-    printf '  %s %-32s %-8s %-6s %-10s\n' "$marker" "$d" "$status" "$port" "$runtime"
+    total=$((total+1))
+    case "$status" in
+      running) glyph='●'; word=running; dot="${C_GREEN:-}${glyph}${rst}"; running=$((running+1)) ;;
+      served)  glyph='●'; word=served;  dot="${C_AMBER:-}${glyph}${rst}"; served=$((served+1)) ;;
+      *)       glyph='○'; word=stopped; dot="${C_DIM:-}${glyph}${rst}";   stopped=$((stopped+1)) ;;
+    esac
+
+    if [ "$i" -eq "$sel" ]; then
+      # Selected row: a full-width reverse-video bar (the "cursor"). Build the
+      # plain text first so its display width is measurable, then pad to the
+      # terminal width before wrapping the whole thing in reverse video.
+      rowplain="$(printf '  > %-32s %s %-7s %-6s %-10s' "$d" "$glyph" "$word" "$port" "$runtime")"
+      pad=$((cols - ${#rowplain}))
+      [ "$pad" -lt 0 ] && pad=0
+      printf '%s%s%*s%s\n' "${C_REV:-}" "$rowplain" "$pad" '' "$rst"
+    else
+      printf '    %-32s %s %-7s %-6s %-10s\n' "$d" "$dot" "$word" "$port" "$runtime"
+    fi
     i=$((i+1))
   done < <(fs_registry_domains)
+
+  # Bottom status bar: a thin rule and live counts.
+  local summary="$total sites · $running running"
+  [ "$served" -gt 0 ] && summary="$summary · $served served"
+  summary="$summary · $stopped stopped"
+  printf '\n  %s────────────────────────────────────────────────────────────%s\n' "${C_DIM:-}" "$rst"
+  printf '  %s%s%s\n' "${C_DIM:-}" "$summary" "$rst"
 }
 
 fs_dash_action() {
@@ -116,6 +164,7 @@ fs_cmd_dash() {
   local domain
   local dir
   local confirm
+  fs_dash_colors
   trap 'printf "\033[?25h\033[?1049l"' EXIT INT TERM
   printf '\033[?1049h\033[?25l'
   while true; do
