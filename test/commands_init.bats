@@ -43,3 +43,37 @@ setup() {
   [ "$status" -eq 0 ]
   grep -q "domain=my-app.test" "$PROJ/.folderserver"
 }
+
+@test "init registers the site (dir set, port blank) so it is known without a prior up" {
+  install_php_stub 8.4
+  run fs_cmd_init "$PROJ"
+  [ "$status" -eq 0 ]
+  run fs_registry_field my-app.test 2
+  [ "$status" -eq 0 ]
+  [ "$output" = "$PROJ" ]
+  # port stays blank until the first 'fs up'
+  run fs_registry_field my-app.test 3
+  [ -z "$output" ]
+}
+
+@test "init records a runtime label matching the site type" {
+  # no php installed -> static
+  run fs_cmd_init "$PROJ"
+  [ "$status" -eq 0 ]
+  run fs_registry_field my-app.test 4
+  [ "$output" = "static" ]
+}
+
+@test "init --force with a changed domain drops the stale registry row" {
+  install_php_stub 8.4
+  # simulate a site previously init'd under a different domain
+  printf 'domain=old.test\ntype=static\n' >"$PROJ/.folderserver"
+  fs_registry_set old.test "$PROJ" "" static
+  # re-init: the default domain becomes my-app.test (from the folder name)
+  run fs_cmd_init "$PROJ" --force
+  [ "$status" -eq 0 ]
+  # the new domain is registered...
+  run fs_registry_field my-app.test 2; [ "$output" = "$PROJ" ]
+  # ...and the old one is gone (no orphan row)
+  run fs_registry_field old.test 2; [ "$status" -ne 0 ]
+}

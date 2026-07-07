@@ -819,6 +819,16 @@ _fs_prompt_config() {
   fi
 }
 
+# _fs_runtime_label <type> <mode> <php> — the registry's runtime column, matching
+# what each `fs up` path records: "php <ver>" / "node dev" / "node build" / "static".
+_fs_runtime_label() {
+  case "$1" in
+    static) echo "static" ;;
+    node)   [ "$2" = build ] && echo "node build" || echo "node dev" ;;
+    *)      echo "php $3" ;;
+  esac
+}
+
 fs_cmd_init() {
   local dir="$PWD" force=0 a
   for a in "$@"; do
@@ -832,6 +842,10 @@ fs_cmd_init() {
     echo "fs: $file exists (use --force to overwrite)" >&2
     return 1
   fi
+  # On a --force re-init, remember the prior domain so we can drop its stale
+  # registry row if the domain changes.
+  local old_domain=""
+  [ -f "$file" ] && old_domain="$(fs_config_get "$file" domain 2>/dev/null || true)"
   # node folder → node; else a PHP-free machine → static; else php.
   local detected=php
   if fs_detect_node "$dir"; then detected=node
@@ -861,6 +875,11 @@ fs_cmd_init() {
   fs_write_config "$dir" "$NC_DOMAIN" "$NC_PHP" "$NC_DOCROOT" "$NC_REWRITE" \
     "$NC_DB" "$NC_DB_NAME" "$NC_DB_USER" "$NC_DB_PASS" \
     "$NC_TYPE" "$NC_MODE" "$NC_COMMAND" "$NC_BUILD" "$NC_PORT" "$NC_INSTALL" "$NC_LAN"
+  # Register the site immediately so it shows in `fs list` and is picked up by
+  # `fs up --all` even before its first `fs up`. Port is a runtime fact, so it
+  # is left blank here and assigned on the first up.
+  [ -n "$old_domain" ] && [ "$old_domain" != "$NC_DOMAIN" ] && fs_registry_remove "$old_domain"
+  fs_registry_set "$NC_DOMAIN" "$dir" "" "$(_fs_runtime_label "$NC_TYPE" "$NC_MODE" "$NC_PHP")"
   echo "Wrote $file"
 }
 
