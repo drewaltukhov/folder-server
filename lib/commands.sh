@@ -260,15 +260,27 @@ fs_cmd_unbind() {
 # _fs_each_site <fn> — run <fn> for every known site, passing its directory.
 # One site failing does not stop the rest.
 _fs_each_site() {
-  local fn="$1" d dir any=0
+  local fn="$1" d dir any=0 seen=0
   while IFS= read -r d; do
     [ -n "$d" ] || continue
+    seen=1
     dir="$(fs_registry_field "$d" 2 2>/dev/null || true)"
-    [ -n "$dir" ] || continue
+    if [ -z "$dir" ]; then
+      # A registry entry with no directory can't be run — but don't drop it
+      # silently, or '--all' looks like it skipped a site it knows about.
+      echo "fs: skipping '$d' — no directory on record (run 'fs up' in it, or 'fs unbind $d')" >&2
+      continue
+    fi
     any=1
     "$fn" "$dir" || echo "fs: '$fn' failed for $d" >&2
   done < <(fs_registry_domains)
-  [ "$any" -eq 1 ] || echo "fs: no known sites yet (run 'fs init' + 'fs up' in a project)"
+  if [ "$any" -ne 1 ]; then
+    if [ "$seen" -eq 1 ]; then
+      echo "fs: no runnable sites — every known site is missing its directory (see warnings above)" >&2
+    else
+      echo "fs: no known sites yet (run 'fs init' + 'fs up' in a project)"
+    fi
+  fi
 }
 
 # Provision MySQL if the project opts in (shared by every runtime).
