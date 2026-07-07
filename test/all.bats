@@ -60,3 +60,27 @@ teardown() { fs_stop_php a.test >/dev/null 2>&1 || true; fs_stop_php b.test >/de
   [ "$status" -eq 0 ]
   [[ "$output" == *"no known sites"* ]]
 }
+
+@test "up --all warns about (does not silently skip) a site with no recorded directory" {
+  # a real site, brought up once so it is registered
+  fs_cmd_up "$A" >/dev/null
+  fs_cmd_down "$A" >/dev/null
+  # a corrupt registry entry whose directory field (field 2) is empty
+  printf 'orphan.test||8099|static\n' >>"$(fs_registry_file)"
+
+  run fs_cmd_up --all
+  [ "$status" -eq 0 ]
+  # the healthy site still comes up
+  fs_is_running a.test
+  # and the dir-less entry is reported, not silently dropped
+  [[ "$output" == *"orphan.test"* ]]
+}
+
+@test "up --all with only dir-less entries does not falsely claim an empty registry" {
+  printf 'orphan.test||8099|static\n' >>"$(fs_registry_file)"
+
+  run fs_cmd_up --all
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"orphan.test"* ]]
+  [[ "$output" != *"no known sites yet"* ]]
+}
