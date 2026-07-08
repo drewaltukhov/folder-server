@@ -957,6 +957,14 @@ fs_cmd_edit() {
     "$NC_TYPE" "$NC_MODE" "$NC_COMMAND" "$NC_BUILD" "$NC_PORT" "$NC_INSTALL" "$NC_LAN"
   echo "Updated $dir/.folderserver"
 
+  # Reconcile the registry with the edited config. The registry is keyed by
+  # domain, so a changed domain must drop the old row (or it lingers as a
+  # duplicate) and re-register under the new one — matching `fs init --force`.
+  # Re-registering also keeps a stopped site's row in sync; the restart path
+  # below re-sets it with a live port when the site is running.
+  [ "$old_domain" != "$NC_DOMAIN" ] && fs_registry_remove "$old_domain"
+  _fs_register_from_config "$dir"
+
   if [ "$was_running" = yes ]; then
     fs_stop_php "$old_domain"
     fs_remove_router "$old_domain"
