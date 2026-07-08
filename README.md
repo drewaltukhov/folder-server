@@ -13,6 +13,7 @@
   <img alt="Platform" src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white">
   <img alt="Homebrew" src="https://img.shields.io/badge/deps-Homebrew-FBB040?logo=homebrew&logoColor=white">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
+  <img alt="Visitors" src="https://visitor-badge.laobi.icu/badge?page_id=drewaltukhov.folder-server">
 </p>
 
 <p align="center">
