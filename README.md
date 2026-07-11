@@ -194,6 +194,27 @@ rewrite=index.php
 routes everything else to that file — the same behaviour `.htaccess`'s
 `RewriteRule` gives you. Omit `rewrite` for plain static + direct `.php` access.
 
+### PHP inside `.html` files
+
+Every PHP site runs behind a small `php -S` router, and that router executes
+`.html` / `.htm` files (including `index.html`) through the PHP interpreter — so
+a page kept on an `.html` extension can still contain PHP:
+
+```html
+<!-- page.html -->
+<h1>Welcome</h1>
+<?php include("incs/footer.inc.php"); ?>
+```
+
+This is on for all PHP sites; there's nothing to configure. Real static assets
+(`.css`, `.js`, images, …) are still served directly, untouched.
+
+**Only the full `<?php … ?>` tag runs.** Short tags are deliberately disabled
+(`short_open_tag=Off`), so a bare `<?` — most importantly an `<?xml version="1.0"?>`
+prolog in inline SVG/XHTML — is passed through as literal text instead of being
+mis-parsed as code. Legacy pages using `<?…?>` or `<?include(…)?>` need those
+rewritten to `<?php … ?>`.
+
 ### MySQL (`db`)
 
 Set `db=on` with a `db_user`/`db_pass` (and optional `db_name`, defaulting to the
