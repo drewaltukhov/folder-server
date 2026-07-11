@@ -43,14 +43,14 @@ EOF
 
 @test "fs_router_render substitutes the front controller" {
   run fs_router_render index.php
-  [[ "$output" == *"require \$root . '/index.php';"* ]]
+  [[ "$output" == *"= 'index.php';"* ]]
   [[ "$output" == *"return false;"* ]]
 }
 
 @test "fs_write_router writes a router file for the domain" {
   fs_write_router app.test index.php
   [ -f "$(fs_router_file app.test)" ]
-  grep -q "require \$root . '/index.php';" "$(fs_router_file app.test)"
+  grep -q "= 'index.php';" "$(fs_router_file app.test)"
 }
 
 @test "up with rewrite generates a router and passes it to php" {
@@ -63,14 +63,15 @@ EOF
   grep -q "router.php" "$BATS_TEST_TMPDIR/php-argv.log"
 }
 
-@test "up without rewrite does not pass a router" {
+@test "up without rewrite still passes a router (for .html execution) with an empty front controller" {
   _fake_php
   printf 'domain=app.test\n' >"$PROJ/.folderserver"
   run fs_cmd_up "$PROJ"
   [ "$status" -eq 0 ]
-  [ ! -f "$(fs_router_file app.test)" ]
-  run grep -q "router.php" "$BATS_TEST_TMPDIR/php-argv.log"
-  [ "$status" -ne 0 ]
+  [ -f "$(fs_router_file app.test)" ]
+  grep -q "router.php" "$BATS_TEST_TMPDIR/php-argv.log"
+  # No front controller configured → the router's $fc is empty.
+  grep -q "= '';" "$(fs_router_file app.test)"
 }
 
 @test "down removes the router file" {
