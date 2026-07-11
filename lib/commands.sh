@@ -336,15 +336,19 @@ fs_node_install_hint() {
 # --- PHP (default): php -S behind Caddy ---
 fs_up_php() {
   local dir="$1"
-  local router=""
+  # Every PHP site runs behind a router so that *.html files are executed as
+  # PHP (see templates/router.php.tmpl). The front controller is optional —
+  # empty unless a rewrite is configured.
+  local fc=""
   if [ -n "$FS_REWRITE" ]; then
     if [[ ! "$FS_REWRITE" =~ ^[A-Za-z0-9._-]+$ ]]; then
       echo "fs: invalid rewrite '$FS_REWRITE' (must be a front-controller filename in the docroot, e.g. index.php)" >&2
       return 1
     fi
-    fs_write_router "$FS_DOMAIN" "$FS_REWRITE"
-    router="$(fs_router_file "$FS_DOMAIN")"
+    fc="$FS_REWRITE"
   fi
+  fs_write_router "$FS_DOMAIN" "$fc"
+  local router; router="$(fs_router_file "$FS_DOMAIN")"
   local phpbin
   local port
   phpbin="$(fs_php_binary "$FS_PHP")" || return 1

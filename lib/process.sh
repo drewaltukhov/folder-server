@@ -21,10 +21,14 @@ fs_start_php() {
   local log pf
   log="$(fs_logfile "$domain")"
   pf="$(fs_pidfile "$domain")"
+  # short_open_tag=Off (explicit, not just the default) so only `<?php … ?>`
+  # executes in the .html files the router runs through PHP. This keeps a bare
+  # `<?` — most importantly an XML/SVG `<?xml … ?>` prolog — passing through as
+  # literal text instead of being mis-parsed as code.
   if [ -n "$router" ]; then
-    nohup "$phpbin" -S "127.0.0.1:$port" -t "$docroot" "$router" </dev/null >"$log" 2>&1 &
+    nohup "$phpbin" -d short_open_tag=Off -S "127.0.0.1:$port" -t "$docroot" "$router" </dev/null >"$log" 2>&1 &
   else
-    nohup "$phpbin" -S "127.0.0.1:$port" -t "$docroot" </dev/null >"$log" 2>&1 &
+    nohup "$phpbin" -d short_open_tag=Off -S "127.0.0.1:$port" -t "$docroot" </dev/null >"$log" 2>&1 &
   fi
   echo "$!" >"$pf"
 }
