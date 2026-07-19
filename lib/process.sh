@@ -4,6 +4,10 @@
 fs_pidfile() { printf '%s\n' "$FS_HOME/run/$1.pid"; }
 fs_logfile() { printf '%s\n' "$FS_HOME/logs/$1.log"; }
 
+# fs_remove_logfile <domain> — delete a site's backend log. Called on unbind so
+# logs don't linger for sites the user has forgotten.
+fs_remove_logfile() { rm -f "$(fs_logfile "$1")"; }
+
 fs_is_running() {
   local pf; pf="$(fs_pidfile "$1")"
   [ -f "$pf" ] || return 1
