@@ -214,6 +214,8 @@ fs_unbind_domain() {
   fs_stop_php "$domain"
   fs_remove_router "$domain"
   fs_remove_site "$domain"
+  fs_remove_site_cert "$domain"
+  fs_remove_logfile "$domain"
   fs_lan_port_forget "$domain"
   fs_caddy_reload || true
   [ -n "$dir" ] && rm -f "$dir/.folderserver"

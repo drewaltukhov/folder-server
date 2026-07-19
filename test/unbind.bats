@@ -36,6 +36,21 @@ teardown() { fs_stop_php app.test >/dev/null 2>&1 || true; }
   [ ! -f "$FS_CADDY_SITES/app.test.caddy" ]
 }
 
+@test "fs_unbind_domain deletes the per-site cert and logfile" {
+  fs_cmd_up "$PROJ" >/dev/null
+  # seed a cert + log the way fs_up/fs_ensure_site_cert would
+  { read -r cert; read -r key; } < <(fs_cert_paths app.test)
+  : >"$cert"; : >"$key"
+  : >"$(fs_logfile app.test)"
+  [ -f "$cert" ] && [ -f "$key" ] && [ -f "$(fs_logfile app.test)" ]
+
+  fs_unbind_domain app.test
+
+  [ ! -f "$cert" ]
+  [ ! -f "$key" ]
+  [ ! -f "$(fs_logfile app.test)" ]
+}
+
 @test "fs_unbind_domain on a stopped, never-started site is a clean no-op-ish" {
   fs_registry_set app.test "$PROJ" 8000 8.4
   fs_unbind_domain app.test
