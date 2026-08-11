@@ -113,6 +113,46 @@ fs_detect_output() {
   fi
 }
 
+# fs_detect_dev_script <dir> — package.json declares a "dev" script. Matched
+# inside the "scripts" object only, so a *dependency* named "dev" doesn't read
+# as a dev server. Without a dev script, mode=dev would start a command that
+# dies immediately and leave Caddy proxying to a dead port.
+fs_detect_dev_script() {
+  local pkg="$1/package.json"
+  [ -f "$pkg" ] || return 1
+  tr -d ' \t\n' <"$pkg" | grep -qE '"scripts":\{[^}]*"dev":'
+}
+
+# fs_detect_php_project <dir> — the folder root carries a PHP signal. Mixed
+# stacks (Laravel, WordPress themes) ship a package.json to build their assets
+# while the thing to serve is the PHP app, so this outranks node detection.
+# Root only: a stray .php under src/ doesn't make a node project a PHP one.
+fs_detect_php_project() {
+  local dir="$1" f
+  [ -f "$dir/composer.json" ] && return 0
+  [ -f "$dir/artisan" ] && return 0
+  for f in "$dir"/*.php; do [ -e "$f" ] && return 0; done
+  return 1
+}
+
+# fs_have_node_pm <dir> — the folder's package manager is actually installed.
+fs_have_node_pm() { command -v "$(fs_detect_pm "$1")" >/dev/null 2>&1; }
+
+# fs_detect_runtime <dir> — node | php | static. The single rule shared by
+# `fs serve` and non-interactive `fs init`, so the two can't disagree about the
+# same folder. A folder is node only when it has a package.json with a dev
+# script and no PHP of its own; otherwise PHP when installed, else static.
+fs_detect_runtime() {
+  local dir="$1"
+  if fs_detect_node "$dir" && fs_detect_dev_script "$dir" && ! fs_detect_php_project "$dir"; then
+    echo node
+  elif fs_have_php; then
+    echo php
+  else
+    echo static
+  fi
+}
+
 fs_db_enabled() {
   case "$1" in on|1|true|yes|ON|Yes|True) return 0 ;; *) return 1 ;; esac
 }
@@ -684,19 +724,37 @@ fs_have_php() {
 }
 
 # fs_cmd_serve [dir] — zero-config quick serve: if there's no .folderserver,
-# write a minimal one (default domain, no MySQL/routing) and bring it up. Uses
-# PHP when installed, otherwise a plain static server. `fs serve` → see the page.
+# write a minimal one (default domain, no MySQL/routing) and bring it up. The
+# runtime is autodetected (node dev server / PHP / plain static — see
+# fs_detect_runtime). `fs serve` → see the page.
 fs_cmd_serve() {
-  local dir="${1:-$PWD}" phpv
+  local dir="${1:-$PWD}" phpv cmd
   if [ ! -f "$dir/.folderserver" ]; then
-    if fs_have_php; then
-      phpv="$(fs_pick_php)"
-      fs_write_config "$dir" "$(fs_default_domain "$dir")" "$phpv" "" "" off "" "" "" php dev "" "" "" ""
-      echo "Created $dir/.folderserver (php $phpv)"
-    else
-      fs_write_config "$dir" "$(fs_default_domain "$dir")" "" "" "" off "" "" "" static dev "" "" "" ""
-      echo "Created $dir/.folderserver (static)"
-    fi
+    case "$(fs_detect_runtime "$dir")" in
+      node)
+        # Bail before writing anything: falling back to static here would
+        # publish src/ and package.json, and `fs up` would otherwise fail deep
+        # in the install step with a bare "command not found".
+        if ! fs_have_node_pm "$dir"; then
+          echo "fs: $dir looks like a node project but '$(fs_detect_pm "$dir")' isn't installed — brew install node" >&2
+          return 1
+        fi
+        cmd="$(fs_detect_command "$dir" dev)"
+        # install=on so `fs up` installs dependencies when node_modules is missing.
+        fs_write_config "$dir" "$(fs_default_domain "$dir")" "" "" "" off "" "" "" \
+          node dev "$cmd" "$(fs_detect_command "$dir" build)" "$(fs_detect_port "$dir")" on
+        echo "Created $dir/.folderserver (node dev: $cmd)"
+        ;;
+      php)
+        phpv="$(fs_pick_php)"
+        fs_write_config "$dir" "$(fs_default_domain "$dir")" "$phpv" "" "" off "" "" "" php dev "" "" "" ""
+        echo "Created $dir/.folderserver (php $phpv)"
+        ;;
+      *)
+        fs_write_config "$dir" "$(fs_default_domain "$dir")" "" "" "" off "" "" "" static dev "" "" "" ""
+        echo "Created $dir/.folderserver (static)"
+        ;;
+    esac
   fi
   fs_cmd_up "$dir" || return 1
   _fs_load_config "$dir"
@@ -863,11 +921,8 @@ fs_cmd_init() {
   # registry row if the domain changes.
   local old_domain=""
   [ -f "$file" ] && old_domain="$(fs_config_get "$file" domain 2>/dev/null || true)"
-  # node folder → node; else a PHP-free machine → static; else php.
-  local detected=php
-  if fs_detect_node "$dir"; then detected=node
-  elif ! fs_have_php; then detected=static
-  fi
+  # Same rule as `fs serve` — only the interactive prompt below may override it.
+  local detected; detected="$(fs_detect_runtime "$dir")"
 
   if _fs_have_gum_tty; then
     _fs_prompt_config "$dir" "$detected" "$(fs_default_domain "$dir")" 8.4 "" "" \

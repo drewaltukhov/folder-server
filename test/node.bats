@@ -46,6 +46,90 @@ teardown() { fs_stop_proc app.test >/dev/null 2>&1 || true; }
   [ "$(fs_detect_port "$PROJ")" = 3000 ]
 }
 
+# --- runtime detection (shared by `fs serve` and non-interactive `fs init`) ---
+
+# a package.json shaped like a real dev-server project
+make_node_pkg() {
+  printf '{"scripts":{"dev":"astro dev","build":"astro build"},"dependencies":{"astro":"5"}}\n' \
+    >"${1:-$PROJ}/package.json"
+}
+
+@test "fs_detect_dev_script true only for a dev script in scripts" {
+  run fs_detect_dev_script "$PROJ"; [ "$status" -ne 0 ]   # no package.json
+  printf '{"scripts":{"build":"astro build"}}\n' >"$PROJ/package.json"
+  run fs_detect_dev_script "$PROJ"; [ "$status" -ne 0 ]   # build only
+  printf '{"scripts":{"lint":"x"},"devDependencies":{"dev":"1"}}\n' >"$PROJ/package.json"
+  run fs_detect_dev_script "$PROJ"; [ "$status" -ne 0 ]   # "dev" as a dep name
+  make_node_pkg
+  run fs_detect_dev_script "$PROJ"; [ "$status" -eq 0 ]
+}
+
+@test "fs_detect_dev_script handles a pretty-printed package.json" {
+  # real package.json files are indented across lines, not minified
+  cat >"$PROJ/package.json" <<'JSON'
+{
+  "name": "astro-alpranax",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build"
+  },
+  "dependencies": {
+    "astro": "^5.0.0"
+  }
+}
+JSON
+  run fs_detect_dev_script "$PROJ"; [ "$status" -eq 0 ]
+  [ "$(fs_detect_runtime "$PROJ")" = node ]
+}
+
+@test "fs_detect_php_project true for root php signals only" {
+  run fs_detect_php_project "$PROJ"; [ "$status" -ne 0 ]
+  : >"$PROJ/composer.json"
+  run fs_detect_php_project "$PROJ"; [ "$status" -eq 0 ]
+  rm "$PROJ/composer.json"; : >"$PROJ/artisan"
+  run fs_detect_php_project "$PROJ"; [ "$status" -eq 0 ]
+  rm "$PROJ/artisan"; : >"$PROJ/index.php"
+  run fs_detect_php_project "$PROJ"; [ "$status" -eq 0 ]
+  # a nested .php file is not a php project
+  rm "$PROJ/index.php"; mkdir -p "$PROJ/src"; : >"$PROJ/src/thing.php"
+  run fs_detect_php_project "$PROJ"; [ "$status" -ne 0 ]
+}
+
+@test "fs_detect_runtime picks node for a clean node project" {
+  install_php_stub 8.4          # php installed, but node still wins
+  make_node_pkg
+  [ "$(fs_detect_runtime "$PROJ")" = node ]
+}
+
+@test "fs_detect_runtime picks php for a mixed php+node project" {
+  install_php_stub 8.4
+  make_node_pkg                 # laravel: package.json for vite …
+  : >"$PROJ/composer.json"      # … alongside the php app
+  : >"$PROJ/artisan"
+  [ "$(fs_detect_runtime "$PROJ")" = php ]
+}
+
+@test "fs_detect_runtime picks php when package.json has no dev script" {
+  install_php_stub 8.4
+  printf '{"scripts":{"build":"webpack"}}\n' >"$PROJ/package.json"
+  [ "$(fs_detect_runtime "$PROJ")" = php ]
+}
+
+@test "fs_detect_runtime falls back to static with no php and no node" {
+  [ "$(fs_detect_runtime "$PROJ")" = static ]
+}
+
+@test "fs_have_node_pm follows the folder's package manager" {
+  make_node_pkg
+  make_stub npm
+  run fs_have_node_pm "$PROJ"; [ "$status" -eq 0 ]
+  # nothing resolvable on PATH → false (the check is builtin-only, so an empty
+  # PATH is a reliable stand-in for "the package manager isn't installed")
+  PATH="" run fs_have_node_pm "$PROJ"
+  [ "$status" -ne 0 ]
+}
+
 # --- config round-trip ---
 
 @test "write + resolve node dev config" {
@@ -69,7 +153,7 @@ teardown() { fs_stop_proc app.test >/dev/null 2>&1 || true; }
 }
 
 @test "init (non-interactive) writes a node config in a node folder" {
-  : >"$PROJ/package.json"; : >"$PROJ/pnpm-lock.yaml"
+  make_node_pkg; : >"$PROJ/pnpm-lock.yaml"
   run fs_cmd_init "$PROJ"
   [ "$status" -eq 0 ]
   grep -q '^type=node$' "$PROJ/.folderserver"
@@ -152,7 +236,7 @@ EOF
 }
 
 @test "init in a node folder enables auto-install by default" {
-  : >"$PROJ/package.json"
+  make_node_pkg
   run fs_cmd_init "$PROJ"
   [ "$status" -eq 0 ]
   grep -q '^install=on$' "$PROJ/.folderserver"

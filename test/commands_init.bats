@@ -24,10 +24,21 @@ setup() {
 }
 
 @test "init in a node folder stays node even with no php" {
-  printf '{}\n' >"$PROJ/package.json"
+  printf '{"scripts":{"dev":"vite"}}\n' >"$PROJ/package.json"
   run fs_cmd_init "$PROJ"
   [ "$status" -eq 0 ]
   grep -q "^type=node$" "$PROJ/.folderserver"
+}
+
+@test "init picks php over node for a mixed php+node project" {
+  install_php_stub 8.4
+  printf '{"scripts":{"dev":"vite"}}\n' >"$PROJ/package.json"   # laravel-style assets
+  : >"$PROJ/composer.json"
+  : >"$PROJ/artisan"
+  run fs_cmd_init "$PROJ"
+  [ "$status" -eq 0 ]
+  grep -q "^php=8.4$" "$PROJ/.folderserver"
+  run grep -q "^type=node$" "$PROJ/.folderserver"; [ "$status" -ne 0 ]
 }
 
 @test "init refuses to overwrite without --force" {

@@ -75,8 +75,19 @@ The fastest path — one command, and your browser opens on the page:
 
 ```sh
 cd ~/Sites/my-project
-fs serve         # zero-config: PHP if installed, else static — serve, open the browser
+fs serve         # zero-config: detects the runtime — serve, open the browser
 ```
+
+`fs serve` picks the runtime for you:
+
+| Folder looks like | Runtime |
+|---|---|
+| `package.json` with a `dev` script, no PHP files | **node** — installs dependencies if missing, runs the dev server |
+| anything else, with PHP installed | **php** |
+| anything else, PHP-free machine | **static** |
+
+A folder with *both* a `package.json` and PHP (Laravel, a WordPress theme) is
+served as **PHP** — the `package.json` there builds assets, it isn't the site.
 
 Or set it up explicitly:
 
@@ -93,7 +104,7 @@ runtime — plus optional routing and optional MySQL (with a login/password).
 
 | Command | What it does |
 |---|---|
-| `fs serve` | Zero-config: PHP config if PHP is installed, else static — serve and open the browser |
+| `fs serve` | Zero-config: autodetects node / PHP / static — serve and open the browser |
 | `fs init` | Interactive setup for the current folder → writes `.folderserver` |
 | `fs up` / `fs up --all` | Serve this folder (or every known site) |
 | `fs down` / `fs down --all` | Stop this folder (or every site) |
@@ -127,8 +138,9 @@ lan=on                   # optional — also serve on the local network (below)
 
 ### Node / npm projects (`type=node`)
 
-`fs init` detects a `package.json` and offers a **node** runtime (you can still
-pick `php`). Two modes:
+`fs serve` picks node automatically for a folder with a `package.json` that has
+a `dev` script and no PHP of its own; `fs init` offers a **node** runtime
+whenever it sees a `package.json` (you can still pick `php`). Two modes:
 
 **Dev server** (`mode=dev`) — runs your dev command and proxies `<name>.test` to
 it, with live reload:
@@ -144,8 +156,9 @@ port=5173                # the port your dev server listens on
   config. `port=` is optional — it seeds the injected `PORT` and acts as a fallback.
 - folder-server rewrites the upstream `Host` to loopback so dev servers don't
   reject the proxied hostname (`Blocked request … is not allowed`).
-- `install=on` (default when `fs init` detects a node project) auto-runs the
-  package manager's install step on `fs up` when `node_modules` is missing.
+- `install=on` (default when `fs serve` or `fs init` detects a node project)
+  auto-runs the package manager's install step on `fs up` when `node_modules`
+  is missing.
 
 **Static build** (`mode=build`) — runs the build once; Caddy then serves the
 output folder directly (no running process):
