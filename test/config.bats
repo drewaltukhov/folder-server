@@ -30,10 +30,19 @@ setup() {
 }
 
 @test "fs_resolve_config fills defaults when file absent" {
+  # No php@8.x installed at all — fs_pick_php falls back to naming 8.4, and
+  # 'fs up' is what reports it missing.
   run fs_resolve_config "$PROJ"
   [[ "$output" == *"domain=my-project.test"* ]]
   [[ "$output" == *"php=8.4"* ]]
   [[ "$output" == *"docroot=$PROJ"* ]]
+}
+
+@test "fs_resolve_config defaults php to an installed version, not a fixed 8.4" {
+  install_php_stub 8.5
+  printf 'domain=custom.test\n' >"$PROJ/.folderserver"   # config names no php
+  run fs_resolve_config "$PROJ"
+  [[ "$output" == *"php=8.5"* ]]
 }
 
 @test "fs_resolve_config honors file values" {

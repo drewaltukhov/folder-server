@@ -703,25 +703,7 @@ fs_cmd_lan() {
   esac
 }
 
-# echo an installed PHP version (prefers 8.4) — for zero-config `fs serve`.
-fs_pick_php() {
-  local v
-  for v in 8.4 8.5 8.3; do
-    [ -x "$FS_BREW_OPT/php@$v/bin/php" ] && { printf '%s\n' "$v"; return 0; }
-  done
-  printf '8.4\n'
-}
-
-# true only if some php@8.x is actually installed. Distinct from fs_pick_php,
-# which always names a version (falling back to 8.4). Used to decide whether the
-# zero-config default is PHP or a plain static server.
-fs_have_php() {
-  local v
-  for v in 8.4 8.5 8.3; do
-    [ -x "$FS_BREW_OPT/php@$v/bin/php" ] && return 0
-  done
-  return 1
-}
+# fs_pick_php / fs_have_php now live in helpers.sh, beside fs_php_binary.
 
 # fs_cmd_serve [dir] — zero-config quick serve: if there's no .folderserver,
 # write a minimal one (default domain, no MySQL/routing) and bring it up. The
@@ -925,10 +907,10 @@ fs_cmd_init() {
   local detected; detected="$(fs_detect_runtime "$dir")"
 
   if _fs_have_gum_tty; then
-    _fs_prompt_config "$dir" "$detected" "$(fs_default_domain "$dir")" 8.4 "" "" \
+    _fs_prompt_config "$dir" "$detected" "$(fs_default_domain "$dir")" "$(fs_pick_php)" "" "" \
       off "$(fs_default_dbname "$dir")" app "" dev "" "" "" "" off
   else
-    NC_DOMAIN="$(fs_default_domain "$dir")"; NC_PHP=8.4; NC_DOCROOT=""; NC_REWRITE=""
+    NC_DOMAIN="$(fs_default_domain "$dir")"; NC_PHP="$(fs_pick_php)"; NC_DOCROOT=""; NC_REWRITE=""
     NC_DB=off; NC_DB_NAME=""; NC_DB_USER=""; NC_DB_PASS=""
     NC_TYPE=php; NC_MODE=dev; NC_COMMAND=""; NC_BUILD=""; NC_PORT=""; NC_INSTALL=""
     NC_LAN=off

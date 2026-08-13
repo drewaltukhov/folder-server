@@ -66,7 +66,7 @@ fs_resolve_config() {
   local domain php docroot rewrite db db_name db_user db_pass
   local type mode command build port install lan
   domain="$(fs_config_get "$file" domain)"; [ -n "$domain" ] || domain="$(fs_default_domain "$dir")"
-  php="$(fs_config_get "$file" php)";       [ -n "$php" ] || php="8.4"
+  php="$(fs_config_get "$file" php)";       [ -n "$php" ] || php="$(fs_pick_php)"
   docroot="$(fs_config_get "$file" docroot)"
   if [ -z "$docroot" ]; then docroot="$dir"
   else case "$docroot" in /*) : ;; *) docroot="$dir/$docroot" ;; esac
@@ -165,5 +165,27 @@ fs_php_binary() {
   local path="$FS_BREW_OPT/php@$ver/bin/php"
   if [ -x "$path" ]; then printf '%s\n' "$path"; return 0; fi
   echo "fs: php@$ver not installed (run: brew install php@$ver)" >&2
+  return 1
+}
+
+# echo an installed PHP version (prefers 8.4) — the default for a config that
+# doesn't name one. Lives here, beside fs_php_binary, so fs_resolve_config can
+# reach it without pulling in commands.sh.
+fs_pick_php() {
+  local v
+  for v in 8.4 8.5 8.3; do
+    [ -x "$FS_BREW_OPT/php@$v/bin/php" ] && { printf '%s\n' "$v"; return 0; }
+  done
+  printf '8.4\n'
+}
+
+# true only if some php@8.x is actually installed. Distinct from fs_pick_php,
+# which always names a version (falling back to 8.4). Used to decide whether the
+# zero-config default is PHP or a plain static server.
+fs_have_php() {
+  local v
+  for v in 8.4 8.5 8.3; do
+    [ -x "$FS_BREW_OPT/php@$v/bin/php" ] && return 0
+  done
   return 1
 }
