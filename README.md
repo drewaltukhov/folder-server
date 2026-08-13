@@ -2,7 +2,7 @@
   <img src="docs/logo.svg" alt="folder-server" width="140">
 </p>
 
-<h1 align="center">Folder Server v1.0</h1>
+<h1 align="center">Folder Server v1.1</h1>
 
 <p align="center">
   <em>Serve any folder at <code>https://&lt;name&gt;.test</code> — a tiny, brew-based MAMP&nbsp;Pro replacement for Apple&nbsp;Silicon macOS.</em>
@@ -28,7 +28,7 @@ from Homebrew packages and a handful of shell scripts. No Electron, no Intel bin
 
 - 🌐 **Pretty local domains** — every folder gets `https://<name>.test` (via dnsmasq + Caddy)
 - 🔒 **Trusted HTTPS** — real, browser-trusted certs per site (mkcert), no warnings
-- 🐘 **Per-folder PHP** — pick `8.3` / `8.4` / `8.5` per project
+- 🐘 **Per-folder PHP** — pick `8.3` / `8.4` / `8.5` per project, or let it default to one you have installed
 - 📄 **Static sites, no PHP needed** — serve a plain folder of HTML/CSS/JS with `type=static` (the default when no PHP is installed)
 - 🟢 **Node / npm projects too** — serve a dev server (Vite, Astro, Next, …) or a static build at `<name>.test`
 - 🗄️ **MySQL on demand** — opt in per project; the database + user are auto-provisioned
@@ -111,8 +111,9 @@ fs up            # serve it
 open https://my-project.test
 ```
 
-`fs init` walks you through the PHP version — or `static` (no PHP) or a node
-runtime — plus optional routing and optional MySQL (with a login/password).
+`fs init` walks you through the PHP version — preselecting one you have installed
+— or `static` (no PHP) or a node runtime, plus optional routing and optional
+MySQL (with a login/password).
 
 ## Commands
 
@@ -140,14 +141,29 @@ Each project has a small config file in its root:
 
 ```ini
 domain=my-project.test
-php=8.4
-docroot=public          # optional — defaults to the folder root
+php=8.4                  # optional — defaults to an installed version (below)
+docroot=public           # optional — defaults to the folder root
 rewrite=index.php        # optional — front-controller routing (below)
 db=on                    # optional — provision MySQL on `fs up` (below)
 db_name=my_project
 db_user=app
 db_pass=secret
 lan=on                   # optional — also serve on the local network (below)
+```
+
+### PHP version (`php`)
+
+`php=` is optional. When a config doesn't name a version — and when `fs init` or
+`fs serve` writes one for you — folder-server picks a version **you actually have
+installed**, preferring `8.4`, then `8.5`, then `8.3`. So a machine where
+`brew install php` gave you 8.5 gets `php=8.5`, and the first `fs up` works with
+nothing to edit by hand.
+
+Pin a specific version any time by setting it yourself (or via `fs edit`); `fs up`
+tells you plainly if that version isn't installed:
+
+```
+fs: php@8.3 not installed (run: brew install php@8.3)
 ```
 
 ### Node / npm projects (`type=node`)
@@ -344,6 +360,17 @@ succeed over Safari's networking stack:
 scutil --proxy | grep test                 # *.test should be listed
 nscurl https://<name>.test/                 # succeeds when the bypass is active
 ```
+
+## Changelog
+
+Full release notes live on the
+[releases page](https://github.com/drewaltukhov/folder-server/releases).
+
+**v1.1.0** — the PHP version now defaults to one you have installed. Previously
+`fs init` always wrote `php=8.4`, so on a machine where `brew install php` gave
+8.5, the first `fs up` failed with `php@8.4 not installed`. Upgrade with
+`brew upgrade folder-server`. Existing `.folderserver` files are unaffected — a
+version you pinned yourself is still honoured.
 
 ## Uninstall
 
