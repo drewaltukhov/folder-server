@@ -14,13 +14,30 @@ setup() {
   grep -q "php=8.4" "$PROJ/.folderserver"
 }
 
-@test "init picks an installed php when the preferred 8.4 is absent" {
-  # Only 8.5 on the machine — init must not write the unusable php=8.4 default,
-  # which would leave the very first 'fs up' failing on a fresh install.
+@test "init picks an installed php rather than a hardcoded default" {
+  # Only 8.5 on the machine — init must not write an unusable php=8.4, which
+  # would leave the very first 'fs up' failing on a fresh install.
   install_php_stub 8.5
   run fs_cmd_init "$PROJ"
   [ "$status" -eq 0 ]
   grep -q "^php=8.5$" "$PROJ/.folderserver"
+}
+
+@test "init writes the newest installed php when several are present" {
+  install_php_stub 8.3
+  install_php_stub 8.4
+  install_php_stub 8.6
+  run fs_cmd_init "$PROJ"
+  [ "$status" -eq 0 ]
+  grep -q "^php=8.6$" "$PROJ/.folderserver"
+}
+
+@test "init serves php, not static, when only an unlisted version is installed" {
+  install_php_stub 8.2
+  run fs_cmd_init "$PROJ"
+  [ "$status" -eq 0 ]
+  grep -q "^php=8.2$" "$PROJ/.folderserver"
+  run grep -q "^type=static$" "$PROJ/.folderserver"; [ "$status" -ne 0 ]
 }
 
 @test "init defaults to static non-interactively when no php is installed" {

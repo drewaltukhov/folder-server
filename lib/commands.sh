@@ -834,7 +834,16 @@ _fs_prompt_config() {
     # PHP version — or "static" (no PHP, just serve the folder). Preselect
     # static when the project already is static.
     local php_sel="$d_php"; [ "$cur_type" = static ] && php_sel=static
-    NC_PHP="$("$FS_GUM_BIN" choose 8.4 8.5 8.3 static --selected "$php_sel" --header "PHP version (or 'static' for no PHP)")"
+    # Offer only versions this machine can actually run. A version the project
+    # already pins is kept on the list even when it's missing, so `fs edit`
+    # never silently rewrites a deliberate pin — it's the current setting, not
+    # a suggestion. With no PHP installed the list is just "static".
+    local php_opts; php_opts="$(fs_php_versions)"
+    if [ -n "$d_php" ] && ! printf '%s\n' "$php_opts" | grep -qxF "$d_php"; then
+      php_opts="$(printf '%s\n%s\n' "$d_php" "$php_opts")"
+    fi
+    # shellcheck disable=SC2086  # deliberate word-split: one gum arg per version
+    NC_PHP="$("$FS_GUM_BIN" choose $php_opts static --selected "$php_sel" --header "PHP version (or 'static' for no PHP)")"
     if [ "$NC_PHP" = static ]; then
       NC_TYPE=static; NC_PHP=""
       NC_DOCROOT="$("$FS_GUM_BIN" input --value "$d_docroot" --placeholder "public/dist (blank = folder root)" --header "Folder to serve")"

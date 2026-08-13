@@ -46,7 +46,7 @@ main() {
   shift || true
   case "$cmd" in
     help|-h|--help) fs_usage ;;
-    version|-v|--version) echo "folder-server 1.1.0" ;;
+    version|-v|--version) echo "folder-server 1.2.0" ;;
     setup)   fs_cmd_setup "$@" ;;
     serve)   fs_cmd_serve "$@" ;;
     init)    fs_cmd_init "$@" ;;

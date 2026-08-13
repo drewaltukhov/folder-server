@@ -2,7 +2,7 @@
   <img src="docs/logo.svg" alt="folder-server" width="140">
 </p>
 
-<h1 align="center">Folder Server v1.1</h1>
+<h1 align="center">Folder Server v1.2</h1>
 
 <p align="center">
   <em>Serve any folder at <code>https://&lt;name&gt;.test</code> — a tiny, brew-based MAMP&nbsp;Pro replacement for Apple&nbsp;Silicon macOS.</em>
@@ -28,7 +28,7 @@ from Homebrew packages and a handful of shell scripts. No Electron, no Intel bin
 
 - 🌐 **Pretty local domains** — every folder gets `https://<name>.test` (via dnsmasq + Caddy)
 - 🔒 **Trusted HTTPS** — real, browser-trusted certs per site (mkcert), no warnings
-- 🐘 **Per-folder PHP** — pick `8.3` / `8.4` / `8.5` per project, or let it default to one you have installed
+- 🐘 **Per-folder PHP** — pick any version you have installed per project, or let it default to your newest
 - 📄 **Static sites, no PHP needed** — serve a plain folder of HTML/CSS/JS with `type=static` (the default when no PHP is installed)
 - 🟢 **Node / npm projects too** — serve a dev server (Vite, Astro, Next, …) or a static build at `<name>.test`
 - 🗄️ **MySQL on demand** — opt in per project; the database + user are auto-provisioned
@@ -40,7 +40,7 @@ from Homebrew packages and a handful of shell scripts. No Electron, no Intel bin
 ## Requirements
 
 - **macOS** with [Homebrew](https://brew.sh) — Apple Silicon (`/opt/homebrew`) or Intel (`/usr/local`)
-- PHP is **optional** — only needed for PHP sites: `brew install php` (or `php@8.3` / `php@8.4` / `php@8.5`). Static and node projects run without it.
+- PHP is **optional** — only needed for PHP sites: `brew install php` (or any `php@X.Y` formula; whatever you install is detected). Static and node projects run without it.
 - MySQL only if a project uses `db=on`: `brew install mysql`
 
 ## Install
@@ -111,9 +111,9 @@ fs up            # serve it
 open https://my-project.test
 ```
 
-`fs init` walks you through the PHP version — preselecting one you have installed
-— or `static` (no PHP) or a node runtime, plus optional routing and optional
-MySQL (with a login/password).
+`fs init` walks you through the PHP version — listing only versions you have
+installed — or `static` (no PHP) or a node runtime, plus optional routing and
+optional MySQL (with a login/password).
 
 ## Commands
 
@@ -141,7 +141,7 @@ Each project has a small config file in its root:
 
 ```ini
 domain=my-project.test
-php=8.4                  # optional — defaults to an installed version (below)
+php=8.4                  # optional — defaults to your newest installed (below)
 docroot=public           # optional — defaults to the folder root
 rewrite=index.php        # optional — front-controller routing (below)
 db=on                    # optional — provision MySQL on `fs up` (below)
@@ -153,14 +153,20 @@ lan=on                   # optional — also serve on the local network (below)
 
 ### PHP version (`php`)
 
-`php=` is optional. When a config doesn't name a version — and when `fs init` or
-`fs serve` writes one for you — folder-server picks a version **you actually have
-installed**, preferring `8.4`, then `8.5`, then `8.3`. So a machine where
-`brew install php` gave you 8.5 gets `php=8.5`, and the first `fs up` works with
-nothing to edit by hand.
+`php=` is optional. Versions are discovered from your Homebrew installation, so
+folder-server only ever offers — and defaults to — PHP you can actually run:
 
-Pin a specific version any time by setting it yourself (or via `fs edit`); `fs up`
-tells you plainly if that version isn't installed:
+- **At least one PHP installed** → the **newest** one is the default. Install
+  `php@8.6` tomorrow and it's picked up with no update to folder-server.
+- **No PHP at all** → the folder is served as a [static site](#static-sites-typestatic).
+
+The `fs init` / `fs edit` version picker lists exactly what's installed, plus
+`static`. It no longer offers versions you don't have. If a project pins a
+version that's since been uninstalled, that pin stays on the list so editing
+another setting never silently rewrites it.
+
+Pin a specific version any time by setting it yourself; `fs up` tells you plainly
+if it isn't installed:
 
 ```
 fs: php@8.3 not installed (run: brew install php@8.3)
@@ -219,8 +225,8 @@ docroot=public           # optional — defaults to the folder root
   default: `fs serve` and `fs init` pick it automatically, and the runtime
   prompt preselects it.
 - Already have PHP installed but want a static site anyway? Pick **`static`**
-  from the PHP-version list in `fs init` / `fs edit` (it sits alongside
-  `8.4` / `8.5` / `8.3`).
+  from the PHP-version list in `fs init` / `fs edit` — it sits alongside the
+  versions you have installed.
 - `lan=on` works — the site is served statically over the LAN too.
 
 ### Front-controller routing (`rewrite`)
@@ -365,6 +371,13 @@ nscurl https://<name>.test/                 # succeeds when the bypass is active
 
 Full release notes live on the
 [releases page](https://github.com/drewaltukhov/folder-server/releases).
+
+**v1.2.0** — PHP versions are now discovered from Homebrew instead of a fixed
+`8.3` / `8.4` / `8.5` list. The `fs init` / `fs edit` picker shows only versions
+you have installed, the default is your **newest**, and versions outside the old
+list work properly — previously a machine with only `php@8.2` was treated as
+having no PHP at all, silently serving `.php` files as static text. Future
+releases like `8.6` are picked up automatically.
 
 **v1.1.0** — the PHP version now defaults to one you have installed. Previously
 `fs init` always wrote `php=8.4`, so on a machine where `brew install php` gave

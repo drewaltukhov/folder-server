@@ -20,6 +20,33 @@ teardown() { fs_stop_proc my-site.test >/dev/null 2>&1 || true; }
   [ "$(fs_pick_php)" = 8.4 ]
 }
 
+@test "fs_pick_php returns the newest installed version" {
+  install_php_stub 8.3
+  install_php_stub 8.6
+  [ "$(fs_pick_php)" = 8.6 ]
+}
+
+@test "fs_php_versions lists installed versions newest first" {
+  install_php_stub 8.3
+  install_php_stub 8.10          # numeric, not lexical: 8.10 outranks 8.4
+  [ "$(fs_php_versions | tr '\n' ' ')" = "8.10 8.4 8.3 " ]
+}
+
+@test "fs_php_versions is empty when no php is installed" {
+  rm -rf "$FS_BREW_OPT"/php@*
+  [ -z "$(fs_php_versions)" ]
+  run fs_have_php; [ "$status" -ne 0 ]
+}
+
+@test "serve picks php when only a version outside the old 8.3-8.5 list is present" {
+  # Regression: 8.2 (and, later, 8.6+) used to be invisible, so a PHP project
+  # was silently served as static — .php files delivered as plain text.
+  rm -rf "$FS_BREW_OPT"/php@*
+  install_php_stub 8.2
+  run fs_have_php; [ "$status" -eq 0 ]
+  [ "$(fs_pick_php)" = 8.2 ]
+}
+
 @test "serve creates a default php config, serves, and opens the browser" {
   run fs_cmd_serve "$PROJ"
   [ "$status" -eq 0 ]

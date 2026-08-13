@@ -168,24 +168,35 @@ fs_php_binary() {
   return 1
 }
 
-# echo an installed PHP version (prefers 8.4) — the default for a config that
-# doesn't name one. Lives here, beside fs_php_binary, so fs_resolve_config can
-# reach it without pulling in commands.sh.
-fs_pick_php() {
-  local v
-  for v in 8.4 8.5 8.3; do
-    [ -x "$FS_BREW_OPT/php@$v/bin/php" ] && { printf '%s\n' "$v"; return 0; }
-  done
-  printf '8.4\n'
+# List every installed PHP version, newest first — the single source of truth
+# for "what can this machine actually run". Discovered from the brew opt links
+# rather than a fixed list, so a new release (8.6) is picked up the day you
+# install it and an old one (8.2) is never overlooked.
+#
+# Sorted numerically by major then minor, so 8.10 correctly outranks 8.5.
+fs_php_versions() {
+  local p v
+  for p in "$FS_BREW_OPT"/php@*/bin/php; do
+    [ -x "$p" ] || continue          # no match → the literal glob → skipped
+    v="${p#*/php@}"; v="${v%%/*}"
+    printf '%s\n' "$v"
+  done | sort -t. -k1,1nr -k2,2nr
 }
 
-# true only if some php@8.x is actually installed. Distinct from fs_pick_php,
-# which always names a version (falling back to 8.4). Used to decide whether the
+# echo the PHP version to default to — the newest installed. Used for a config
+# that doesn't name one, and for the `fs serve` / `fs init` defaults. With no
+# PHP at all the runtime default is static (see fs_have_php), so the 8.4 here is
+# only a last-resort name for the "install this" error from fs_php_binary.
+# Lives here, beside fs_php_binary, so fs_resolve_config can reach it without
+# pulling in commands.sh.
+fs_pick_php() {
+  local newest; newest="$(fs_php_versions | head -1)"
+  printf '%s\n' "${newest:-8.4}"
+}
+
+# true only if some PHP is actually installed. Distinct from fs_pick_php, which
+# always names a version (falling back to 8.4). Used to decide whether the
 # zero-config default is PHP or a plain static server.
 fs_have_php() {
-  local v
-  for v in 8.4 8.5 8.3; do
-    [ -x "$FS_BREW_OPT/php@$v/bin/php" ] && return 0
-  done
-  return 1
+  [ -n "$(fs_php_versions)" ]
 }
