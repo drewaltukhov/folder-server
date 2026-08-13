@@ -39,24 +39,38 @@ from Homebrew packages and a handful of shell scripts. No Electron, no Intel bin
 
 ## Requirements
 
-- **macOS on Apple Silicon** with [Homebrew](https://brew.sh)
+- **macOS** with [Homebrew](https://brew.sh) — Apple Silicon (`/opt/homebrew`) or Intel (`/usr/local`)
 - PHP is **optional** — only needed for PHP sites: `brew install php` (or `php@8.3` / `php@8.4` / `php@8.5`). Static and node projects run without it.
 - MySQL only if a project uses `db=on`: `brew install mysql`
 
 ## Install
 
+### Homebrew (recommended)
+
+```sh
+brew install drewaltukhov/folder-server/folder-server
+fs setup         # sets up DNS, cert, and Caddy
+```
+
+The formula pulls in `dnsmasq`, `caddy`, `gum`, `fzf`, and `mkcert`, and installs
+**shell completion** for `zsh` and `bash` (subcommands, `--all`, and
+`db`/`autostart` actions). Upgrades are `brew upgrade folder-server`.
+
+### From source
+
 ```sh
 git clone https://github.com/drewaltukhov/folder-server.git
 cd folder-server
-./install.sh     # symlinks `fs` + `folder-server` into /opt/homebrew/bin
+./install.sh     # symlinks `fs` + `folder-server` into your Homebrew bin
 fs setup         # installs deps (dnsmasq, caddy, gum, fzf), sets up DNS/cert/Caddy
 ```
 
-`fs setup` prints a few one-time `sudo` lines to finish (starting dnsmasq/caddy and
-adding the DNS resolver) — run those once and you're set.
+`install.sh` also drops in the shell completions, and `uninstall.sh` removes them
+again. Don't run both installs at once — the source symlinks and the formula
+both claim `fs`, so remove one before adding the other.
 
-`install.sh` also drops in **shell completion** for `zsh` and `bash` (subcommands,
-`--all`, and `db`/`autostart` actions), and `uninstall.sh` removes it again.
+Either way, `fs setup` prints a few one-time `sudo` lines to finish (starting
+dnsmasq/caddy and adding the DNS resolver) — run those once and you're set.
 
 ### Start sites at login (optional)
 
