@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # caddy.sh — Caddy site snippet helpers. Safe to source. No `set -e` here.
 : "${FS_CADDY_BIN:=caddy}"
-: "${FS_CADDY_CONFIG:=/opt/homebrew/etc/Caddyfile}"
+: "${FS_CADDY_CONFIG:=$FS_BREW_PREFIX/etc/Caddyfile}"
 
 fs_caddy_template() {
   cd "$(dirname "${BASH_SOURCE[0]}")/../templates" && pwd

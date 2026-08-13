@@ -1038,7 +1038,7 @@ fs_cmd_edit() {
 : "${FS_BREW_BIN:=brew}"
 : "${FS_MYSQL_FORMULA:=mysql}"
 : "${FS_MKCERT_BIN:=mkcert}"
-: "${FS_DNSMASQ_CONF:=/opt/homebrew/etc/dnsmasq.d/test.conf}"
+: "${FS_DNSMASQ_CONF:=$FS_BREW_PREFIX/etc/dnsmasq.d/test.conf}"
 : "${FS_RESOLVER_DIR:=/etc/resolver}"
 
 fs_cmd_db() {
@@ -1059,7 +1059,7 @@ fs_cmd_db() {
 # at login. Split out from fs_cmd_autostart so it's testable without launchctl.
 fs_autostart_render() {
   local self
-  self="${FS_SELF:-$(command -v fs 2>/dev/null || echo /opt/homebrew/bin/fs)}"
+  self="${FS_SELF:-$(command -v fs 2>/dev/null || echo "$FS_BREW_PREFIX/bin/fs")}"
   mkdir -p "$(dirname "$FS_AUTOSTART_PLIST")"
   cat >"$FS_AUTOSTART_PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -1076,7 +1076,7 @@ fs_autostart_render() {
   <key>RunAtLoad</key><true/>
   <key>EnvironmentVariables</key>
   <dict>
-    <key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PATH</key><string>$FS_BREW_PREFIX/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>StandardOutPath</key><string>$FS_HOME/log/autostart.log</string>
   <key>StandardErrorPath</key><string>$FS_HOME/log/autostart.log</string>

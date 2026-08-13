@@ -1,8 +1,28 @@
 # shellcheck shell=bash
 # helpers.sh — pure helpers, safe to source. No `set -e` here.
 : "${FS_HOME:=$HOME/.folder-server}"
-: "${FS_BREW_OPT:=/opt/homebrew/opt}"
-: "${FS_CADDY_SITES:=/opt/homebrew/etc/caddy/sites}"
+
+# Homebrew lives at /opt/homebrew on Apple Silicon and /usr/local on Intel, so
+# nothing below may hardcode either one. Resolution order, cheapest first:
+# HOMEBREW_PREFIX (exported by `brew shellenv`), then the known prefixes, then
+# `brew --prefix` as a last resort — it costs ~100ms, so it's the fallback, not
+# the default path.
+: "${FS_BREW_CANDIDATES:=/opt/homebrew /usr/local}"
+fs_brew_prefix() {
+  local p
+  if [ -n "${HOMEBREW_PREFIX:-}" ]; then printf '%s\n' "$HOMEBREW_PREFIX"; return 0; fi
+  for p in $FS_BREW_CANDIDATES; do
+    [ -x "$p/bin/brew" ] && { printf '%s\n' "$p"; return 0; }
+  done
+  if command -v brew >/dev/null 2>&1; then
+    p="$(brew --prefix 2>/dev/null)" && [ -n "$p" ] && { printf '%s\n' "$p"; return 0; }
+  fi
+  printf '/opt/homebrew\n'
+}
+: "${FS_BREW_PREFIX:=$(fs_brew_prefix)}"
+
+: "${FS_BREW_OPT:=$FS_BREW_PREFIX/opt}"
+: "${FS_CADDY_SITES:=$FS_BREW_PREFIX/etc/caddy/sites}"
 : "${FS_CERT_DIR:=$FS_HOME/certs}"
 
 fs_ensure_home() {
